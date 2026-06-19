@@ -454,6 +454,17 @@ function drawItems(){
     ctx.restore();
   }
 }
+function respawn(r){
+  const dmg=35; r.hp=Math.max(0, r.hp-dmg);
+  if(r.hp<=0){ return; }                          // lethal fall -> defeated
+  let x=W*0.5, gy=H, tries=0;
+  while(tries<40){ const tx=18+Math.random()*(W-36), ty=surfaceY(tx); if(ty<H-2){ x=tx; gy=ty; break; } tries++; }
+  if(gy>=H){ x=W*0.5; gy=surfaceY(x); if(gy>=H)gy=H*0.5; }
+  r.x=x; r.y=gy-16; r.vx=0; r.vy=0; r.grounded=true;
+  spawnExplosion(r.x, r.y, '#9fd0ff', 22); shake=Math.max(shake,7);
+  dmgNums.push({x:r.x, y:r.y-26, val:dmg, life:1.1, vy:-0.7, color:'#ffd27a'});
+  updateHUD();
+}
 function stepRobots(){
   for(const r of robots){ if(r.recoil>0)r.recoil*=0.86; if(r.hp<=0)continue;
     r.vy+=GRAV; r.vx*=0.8;
@@ -468,7 +479,7 @@ function stepRobots(){
       r.vy=0; r.grounded=true; }
     else if(r.vy<0 && isSolid(r.x,r.y-16)){ r.vy=0; }
     else r.grounded=false;
-    if(r.y>H+40)r.hp=0; }
+    if(r.y>H+40) respawn(r); }
 }
 const robotsResting=()=> robots.every(r=> r.hp<=0 || (r.grounded&&Math.abs(r.vy)<0.6&&Math.abs(r.vx)<0.4));
 
