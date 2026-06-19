@@ -40,7 +40,8 @@
   html,body{ height:100%; background:var(--bg); overflow:hidden; font-family:"Exo 2",sans-serif; color:var(--tx2); }
   .orb{ font-family:"Orbitron",sans-serif; }
   #stage{ position:fixed; inset:0; }
-  canvas#cv{ display:block; width:100%; height:100%; touch-action:none; background:#0a0e18; }
+  canvas#cv{ display:block; width:100%; height:100%; touch-action:none; background:#0a0e18;
+    image-rendering:pixelated; image-rendering:crisp-edges; }
   #stage::after{ content:""; position:absolute; inset:0; pointer-events:none;
     background:radial-gradient(130% 130% at 50% 42%, #0000 58%, #00000066 100%); }
 
@@ -209,16 +210,16 @@
 
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-let W=1280,H=720,VW=1280,VH=720,DPR=1; const ZOOM=1.34; let cam={scale:1};
+let W=1280,H=720,VW=1280,VH=720,DPR=1,drawScale=1; const ZOOM=1.2, PX=3; let cam={scale:1};
 const tcan=document.createElement('canvas'); const tctx=tcan.getContext('2d');
 let solid=new Uint8Array(1);
 
 function fitCanvas(){
-  DPR=Math.min(2,window.devicePixelRatio||1);
   VW=Math.max(320,Math.floor(window.innerWidth));
   VH=Math.max(320,Math.floor(window.innerHeight));
-  cv.width=Math.floor(VW*DPR); cv.height=Math.floor(VH*DPR);
   W=Math.round(VW*ZOOM); H=Math.round(VH*ZOOM); cam.scale=VW/W;
+  const pw=Math.max(180,Math.round(VW/PX)), ph=Math.max(140,Math.round(VH/PX));
+  cv.width=pw; cv.height=ph; drawScale=pw/W;       // low-res backing -> upscaled crisp by CSS
   tcan.width=W; tcan.height=H;
 }
 
@@ -333,28 +334,28 @@ function carve(cx,cy,r){
 
 /* ---------- weapons ---------- */
 const WEAPONS=[
-  {id:'cannon', name:'キャノン', sub:'標準弾', grav:1, radius:42, dmg:34, color:'#ffe27a', bounce:0, type:'normal'},
-  {id:'grenade',name:'グレネード',sub:'跳ねる', grav:1, radius:50, dmg:40, color:'#9dff6b', bounce:3, type:'normal'},
-  {id:'cluster',name:'クラスター',sub:'分裂',   grav:1, radius:30, dmg:22, color:'#ff9d5c', bounce:0, type:'cluster'},
-  {id:'rail',   name:'レールガン',sub:'直進',   grav:0.12,radius:26,dmg:46, color:'#7ad7ff', bounce:0, type:'normal'},
+  {id:'cannon', name:'キャノン', sub:'標準弾', grav:1, radius:40, dmg:18, color:'#ffe27a', bounce:0, type:'normal'},
+  {id:'grenade',name:'グレネード',sub:'跳ねる', grav:1, radius:46, dmg:22, color:'#9dff6b', bounce:3, type:'normal'},
+  {id:'cluster',name:'クラスター',sub:'分裂',   grav:1, radius:28, dmg:12, color:'#ff9d5c', bounce:0, type:'cluster'},
+  {id:'rail',   name:'レールガン',sub:'直進',   grav:0.12,radius:24,dmg:26, color:'#7ad7ff', bounce:0, type:'normal'},
 ];
 const WICON={
-  cannon:'<svg viewBox="0 0 24 24" fill="none" stroke="#ffe27a" stroke-width="2"><circle cx="9" cy="15" r="5"/><path d="M12 12l7-7M15 5h4v4"/></svg>',
-  grenade:'<svg viewBox="0 0 24 24" fill="none" stroke="#9dff6b" stroke-width="2"><circle cx="11" cy="14" r="6"/><path d="M15 8l3-3M16 4h4v4"/></svg>',
-  cluster:'<svg viewBox="0 0 24 24" fill="none" stroke="#ff9d5c" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/></svg>',
-  rail:'<svg viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>',
+  cannon:'<svg viewBox="0 0 24 24" fill="none" stroke="#ffe27a" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8 13l1.6-6a2.4 2.4 0 0 1 4.8 0L16 13z" fill="#ffe27a26"/><path d="M8 13h8v3.5a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 8 16.5z" fill="#ffe27a1a"/><path d="M10 9.5h4"/></svg>',
+  grenade:'<svg viewBox="0 0 24 24" fill="none" stroke="#9dff6b" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><rect x="7" y="9" width="10" height="11" rx="4.6" fill="#9dff6b26"/><path d="M9.5 9V7.2h5V9"/><path d="M9 7.2 7 5.2"/><circle cx="6.2" cy="4.6" r="1.5"/><path d="M14.5 7.4 17.4 6"/></svg>',
+  cluster:'<svg viewBox="0 0 24 24" fill="none" stroke="#ff9d5c" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="7.4" r="3.1" fill="#ff9d5c26"/><path d="M12 10.5v2M9.6 12 6.2 14.4M14.4 12l3.4 2.4"/><circle cx="5.6" cy="17.4" r="2" fill="#ff9d5c26"/><circle cx="12" cy="18.4" r="2" fill="#ff9d5c26"/><circle cx="18.4" cy="17.4" r="2" fill="#ff9d5c26"/></svg>',
+  rail:'<svg viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M13 2.5 5.5 13H10l-1.5 8.5L18.5 10H13z" fill="#7ad7ff26"/></svg>',
 };
-const AVA=c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><rect x="6" y="7" width="12" height="11" rx="2"/><circle cx="12" cy="12.5" r="2" fill="${c}"/><path d="M9 7V4M15 7V4M6 12H3M18 12h3"/></svg>`;
+const AVA=c=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="13.5" width="18" height="5.5" rx="2.6" fill="${c}22"/><path d="M5.6 13.5 7 9.6h8l2 3.9" fill="${c}22"/><rect x="9.4" y="6" width="5.6" height="4" rx="1.2" fill="${c}22"/><path d="M14.6 7.6H21"/><circle cx="7" cy="16.2" r="0.7" fill="${c}"/><circle cx="12" cy="16.2" r="0.7" fill="${c}"/><circle cx="17" cy="16.2" r="0.7" fill="${c}"/></svg>`;
 
 /* ---------- state ---------- */
-let robots=[],projectiles=[],particles=[],dmgNums=[];
-let cur=0,phase='aim',wind=0,vsCOM=true,selWeapon=0;
+let robots=[],projectiles=[],particles=[],dmgNums=[],items=[];
+let cur=0,phase='aim',wind=0,vsCOM=true,weaponSel=[2,3];
 let aiTimer=0,aiPlan=null;
 let pad={ move:{active:false,id:-1,bx:0,by:0,tx:0,ty:0}, aim:{active:false,id:-1,bx:0,by:0,tx:0,ty:0} };
 let moveTimer=240, moveStarted=false; const keyState={};
 const PADR=()=>Math.min(W,H)*0.15;
 let shake=0,flash=0,flashColor='#ff2e57',msg='',msgTimer=0,tick=0;
-const GRAV=0.32, MOVE_TIME=240, WALK=2.9, JUMP=7.6;
+const GRAV=0.32, MOVE_TIME=240, WALK=2.9, JUMP=7.6, HEAL=28;
 function aimVel(){ const a=pad.aim; if(!a.active) return {vx:0,vy:0,frac:0};
   const dx=a.tx-a.bx, dy=a.ty-a.by, len=Math.hypot(dx,dy), R=PADR(), frac=Math.min(1,len/R), mv=23;
   const dir= len<0.001?{x:0,y:0}:{x:dx/len,y:dy/len}; return {vx:dir.x*mv*frac, vy:dir.y*mv*frac, frac}; }
@@ -372,7 +373,7 @@ function lockLandscape(){ try{ if(screen.orientation&&screen.orientation.lock) s
 function newGame(){
   actx(); lockLandscape(); fitCanvas(); genTerrain();
   robots=[makeRobot(W*0.16,0),makeRobot(W*0.84,1)];
-  projectiles=[];particles=[];dmgNums=[]; cur=0;phase='aim';selWeapon=0;shake=0;flash=0; moveTimer=MOVE_TIME;moveStarted=false;
+  projectiles=[];particles=[];dmgNums=[];items=[]; cur=0;phase='aim';weaponSel=[2,3];shake=0;flash=0; moveTimer=MOVE_TIME;moveStarted=false;
   setWind(); buildWeaponUI(); document.getElementById('stagetag').textContent='STAGE: '+STAGE_NAMES[curStyle];
   overlay.classList.add('hidden'); document.getElementById('resStat').style.display='none';
   banner('PLAYER 1'); showHint(); updateHUD(); refreshActive();
@@ -411,7 +412,7 @@ function explode(x,y,p){ const w=p.w; carve(x,y,w.radius); spawnExplosion(x,y,w.
         if(r.side===0){ flash=Math.min(1,flash+f*.7); } sfxHit(); }
       const a=Math.atan2(r.y-y,r.x-x), k=f*9; r.vx+=Math.cos(a)*k; r.vy+=Math.sin(a)*k-2; r.grounded=false; } }
   if(w.type==='cluster') for(let i=0;i<5;i++){ const a=-Math.PI/2+(i-2)*0.34, sp=4+Math.random()*2;
-    projectiles.push({x,y:y-6,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,w:{...w,type:'normal',radius:24,dmg:16},owner:p.owner,bounces:0,armed:true,trail:[]}); }
+    projectiles.push({x,y:y-6,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,w:{...w,type:'normal',radius:22,dmg:8},owner:p.owner,bounces:0,armed:true,trail:[]}); }
 }
 
 /* ---------- particles ---------- */
@@ -429,6 +430,26 @@ function stepParticles(){
 }
 
 /* ---------- robots ---------- */
+function spawnItem(){ items.push({x:W*(0.18+Math.random()*0.64), y:-20, vy:0, rest:false}); }
+function stepItems(){
+  for(let i=items.length-1;i>=0;i--){ const it=items[i];
+    if(!it.rest){ it.vy+=GRAV; it.y+=it.vy; if(it.x<10)it.x=10; if(it.x>W-10)it.x=W-10;
+      if(isSolid(it.x,it.y+9)){ let up=0; while(isSolid(it.x,it.y+9)&&up<40){it.y--;up++;} it.vy=0; it.rest=true; }
+      else if(it.y>H+30){ items.splice(i,1); continue; } }
+    for(const r of robots){ if(r.hp<=0)continue; if(Math.abs(r.x-it.x)<18 && Math.abs(r.y-it.y)<22){
+      const heal=Math.min(HEAL,100-r.hp); if(heal>0){ r.hp+=heal; dmgNums.push({x:r.x,y:r.y-26,val:heal,life:1.2,vy:-0.7,color:'#7dffb0',heal:true}); updateHUD(); }
+      beep(620,.12,'sine',.18,940); beep(940,.12,'sine',.16); items.splice(i,1); break; } }
+  }
+}
+function drawItems(){
+  for(const it of items){ const pulse=0.5+0.5*Math.sin(tick*0.12);
+    ctx.save(); ctx.translate(it.x,it.y);
+    ctx.globalAlpha=0.18+0.22*pulse; ctx.fillStyle='#3dffa0'; ctx.beginPath(); ctx.arc(0,0,12,0,7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle='#10241b'; ctx.strokeStyle='#3dffa0'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.roundRect(-8,-8,16,16,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#8effbe'; ctx.fillRect(-1.7,-5,3.4,10); ctx.fillRect(-5,-1.7,10,3.4);
+    ctx.restore();
+  }
+}
 function stepRobots(){
   for(const r of robots){ if(r.recoil>0)r.recoil*=0.86; if(r.hp<=0)continue;
     r.vy+=GRAV; r.vx*=0.8;
@@ -451,6 +472,7 @@ const robotsResting=()=> robots.every(r=> r.hp<=0 || (r.grounded&&Math.abs(r.vy)
 function endTurnCheck(){ if(projectiles.length===0 && robotsResting()){ updateHUD();
     if(robots.some(r=>r.hp<=0)){ gameOver(); return; }
     cur=1-cur; phase='aim'; pad.move.active=false; pad.aim.active=false; moveTimer=MOVE_TIME; moveStarted=false; setWind(); refreshActive(); banner(cur===0?'PLAYER 1':(vsCOM?'COM':'PLAYER 2'));
+    if(items.length<2 && Math.random()<0.45) spawnItem();
     if(!(vsCOM&&cur===1)) showHint(); if(vsCOM&&cur===1){ aiTimer=45; aiPlan=null; } } }
 function gameOver(){ phase='over'; const alive=robots.findIndex(r=>r.hp>0); let title,sub;
   if(alive===-1){ title='DRAW'; sub='相打ち'; } else if(alive===0){ title='PLAYER 1 WIN'; sub='勝利'; }
@@ -459,11 +481,11 @@ function gameOver(){ phase='over'; const alive=robots.findIndex(r=>r.hp>0); let 
   setTimeout(()=>showResult(title,sub,stat),700); }
 
 /* ---------- AI ---------- */
-function aiThink(){ const me=robots[1],foe=robots[0]; selWeapon=Math.floor(Math.random()*WEAPONS.length); buildWeaponUI();
+function aiThink(){ const me=robots[1],foe=robots[0]; weaponSel[1]=Math.floor(Math.random()*WEAPONS.length); buildWeaponUI();
   const dir=foe.x<me.x?-1:1; let best=null;
   for(let ang=18*Math.PI/180;ang<78*Math.PI/180;ang+=4*Math.PI/180)
     for(let pw=8;pw<=23;pw+=1.5){ const vx=dir*Math.cos(ang)*pw, vy=-Math.sin(ang)*pw;
-      const d=simShot(me.x,me.y,vx,vy,WEAPONS[selWeapon]); if(best===null||d<best.d)best={vx,vy,d}; }
+      const d=simShot(me.x,me.y,vx,vy,WEAPONS[weaponSel[1]]); if(best===null||d<best.d)best={vx,vy,d}; }
   const err=1+(Math.random()*2-1)*0.06; aiPlan={vx:best.vx*err,vy:best.vy*err}; }
 function simShot(sx,sy,vx,vy,w){ const a=Math.atan2(vy,vx); let x=sx+Math.cos(a)*24,y=sy+Math.sin(a)*24; const foe=robots[0]; let md=1e9;
   for(let t=0;t<500;t++){ vy+=GRAV*w.grav; vx+=wind*w.grav; x+=vx; y+=vy; const d=Math.hypot(x-foe.x,y-foe.y); if(d<md)md=d; if(x<0||x>W||y>H||isSolid(x,y))break; } return md; }
@@ -480,7 +502,8 @@ function drawTowers(){ for(const t of towers){
   if(t.lit){ const a=0.35+0.6*(0.5+0.5*Math.sin(tick*0.06+t.ph)); ctx.globalAlpha=a; ctx.fillStyle='#ff5a6e'; ctx.shadowColor='#ff3050'; ctx.shadowBlur=6;
     ctx.fillRect(t.x-1.4, t.y-t.h-9, 2.8,2.8); ctx.shadowBlur=0; ctx.globalAlpha=1; } } }
 function draw(){
-  ctx.setTransform(cam.scale*DPR,0,0,cam.scale*DPR,0,0);
+  ctx.setTransform(drawScale,0,0,drawScale,0,0);
+  ctx.imageSmoothingEnabled=false;
   ctx.save();
   if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.88; } else shake=0;
   // sky
@@ -514,6 +537,7 @@ function draw(){
   const hz=ctx.createLinearGradient(0,H*0.4,0,H*0.72); hz.addColorStop(0,'#16365e00'); hz.addColorStop(1,'#1b3a662e');
   ctx.fillStyle=hz; ctx.fillRect(0,H*0.4,W,H*0.32);
   ctx.drawImage(tcan,0,0,W,H);
+  drawItems();
   for(const r of robots) drawRobot(r);
   if(phase==='aim'&&!(vsCOM&&cur===1)){ if(pad.aim.active) drawAim(); drawPads(); }
   for(const p of projectiles){ ctx.strokeStyle=p.w.color+'55'; ctx.lineWidth=2; ctx.beginPath();
@@ -523,8 +547,8 @@ function draw(){
       ctx.beginPath(); ctx.arc(p.x,p.y,(1-p.life)*p.sz*2,0,7); ctx.stroke(); continue; }
     ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.sz*(p.smoke?p.life+0.5:1),0,7); ctx.fill(); }
   ctx.globalAlpha=1;
-  for(const n of dmgNums){ ctx.globalAlpha=Math.min(1,n.life*1.3); ctx.font='900 22px Orbitron,sans-serif'; ctx.textAlign='center';
-    ctx.lineWidth=4; ctx.strokeStyle='#0009'; ctx.strokeText('-'+n.val,n.x,n.y); ctx.fillStyle=n.color; ctx.fillText('-'+n.val,n.x,n.y); }
+  for(const n of dmgNums){ ctx.globalAlpha=Math.min(1,n.life*1.3); ctx.font='900 22px Orbitron,sans-serif'; ctx.textAlign='center'; const t=(n.heal?'+':'-')+n.val;
+    ctx.lineWidth=4; ctx.strokeStyle='#0009'; ctx.strokeText(t,n.x,n.y); ctx.fillStyle=n.color; ctx.fillText(t,n.x,n.y); }
   ctx.globalAlpha=1; ctx.restore();
   if(flash>0.01){ ctx.fillStyle=flashColor; ctx.globalAlpha=flash*.4; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; flash*=0.9; }
   if(msgTimer>0){ const k=Math.min(1,msgTimer/30); ctx.globalAlpha=k; ctx.textAlign='center';
@@ -583,7 +607,7 @@ function drawRobot(r){
   ctx.restore();
 }
 function drawAim(){
-  const r=robots[cur], v=aimVel(), w=WEAPONS[selWeapon]; if(v.frac<0.02) return;
+  const r=robots[cur], v=aimVel(), w=WEAPONS[weaponSel[cur]]; if(v.frac<0.02) return;
   let x=r.x,y=r.y-6,dvx=v.vx,dvy=v.vy; const TN=20;
   for(let t=0;t<TN;t++){ dvy+=GRAV*w.grav; dvx+=wind*w.grav; x+=dvx; y+=dvy;
     if(t%2===0){ ctx.globalAlpha=(1-t/TN)*.9; ctx.fillStyle=w.color; ctx.beginPath(); ctx.arc(x,y,2.6,0,7); ctx.fill(); }
@@ -604,7 +628,7 @@ function drawThumb(pd,col){ if(!pd.active)return; const R=PADR(); let dx=pd.tx-p
   ctx.fillStyle='#06101f'; ctx.beginPath(); ctx.arc(pd.bx+dx,pd.by+dy,5,0,7); ctx.fill(); }
 
 /* ---------- loop ---------- */
-function loop(){ tick++;
+function loop(){ tick++; stepItems();
   if(phase==='firing'){ stepProjectiles(); stepParticles(); stepRobots(); endTurnCheck(); }
   else{ stepParticles();
     const human=phase==='aim'&&!(vsCOM&&cur===1);
@@ -614,7 +638,7 @@ function loop(){ tick++;
       if(mv&&moveStarted&&moveTimer>0) control(robots[cur],mv);
       updateFuel(); }
     stepRobots();
-    if(phase==='aim'&&vsCOM&&cur===1){ if(aiPlan===null){ if(--aiTimer<=0)aiThink(); } else { aiTimer--; if(aiTimer<-25){ fire(robots[1],aiPlan.vx,aiPlan.vy,selWeapon); aiPlan=null; } } } }
+    if(phase==='aim'&&vsCOM&&cur===1){ if(aiPlan===null){ if(--aiTimer<=0)aiThink(); } else { aiTimer--; if(aiTimer<-25){ fire(robots[1],aiPlan.vx,aiPlan.vy,weaponSel[1]); aiPlan=null; } } } }
   if(msgTimer>0)msgTimer--; draw(); requestAnimationFrame(loop);
 }
 
@@ -625,12 +649,12 @@ function onDown(e){ if(phase!=='aim'||(vsCOM&&cur===1))return; e.preventDefault(
   if(pd.active)return; const b=padBase(which); pd.active=true; pd.id=e.pointerId; pd.bx=b.x; pd.by=b.y; pd.tx=p.x; pd.ty=p.y; hideHint(); }
 function onMove(e){ for(const k of ['move','aim']){ const pd=pad[k]; if(pd.active&&pd.id===e.pointerId){ e.preventDefault(); const p=pos(e); pd.tx=p.x; pd.ty=p.y; } } }
 function onUp(e){ for(const k of ['move','aim']){ const pd=pad[k]; if(pd.active&&pd.id===e.pointerId){
-    if(k==='aim'){ const v=aimVel(); if(v.frac>=0.12) fire(robots[cur],v.vx,v.vy,selWeapon); else showHint(); }
+    if(k==='aim'){ const v=aimVel(); if(v.frac>=0.12) fire(robots[cur],v.vx,v.vy,weaponSel[cur]); else showHint(); }
     pd.active=false; pd.id=-1; } } }
 cv.addEventListener('pointerdown',onDown); cv.addEventListener('pointermove',onMove);
 window.addEventListener('pointerup',onUp); window.addEventListener('pointercancel',onUp);
 window.addEventListener('keydown',e=>{ if(phase!=='aim'||(vsCOM&&cur===1))return; const n=+e.key;
-  if(n>=1&&n<=WEAPONS.length){ selWeapon=n-1; buildWeaponUI(); }
+  if(n>=1&&n<=WEAPONS.length){ weaponSel[cur]=n-1; buildWeaponUI(); }
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(e.key)) keyState[e.key]=true; });
 window.addEventListener('keyup',e=>{ keyState[e.key]=false; });
 
@@ -638,9 +662,9 @@ window.addEventListener('keyup',e=>{ keyState[e.key]=false; });
 const weaponsEl=document.getElementById('weapons');
 function buildWeaponUI(){ weaponsEl.innerHTML='';
   WEAPONS.forEach((w,i)=>{ const b=document.createElement('div');
-    b.className='wcard'+(i===selWeapon?' sel':'')+((vsCOM&&cur===1)?' lock':'');
+    b.className='wcard'+(i===weaponSel[cur]?' sel':'')+((vsCOM&&cur===1)?' lock':'');
     b.innerHTML=`<span class="key">${i+1}</span><div class="wi">${WICON[w.id]}</div><div class="wn">${w.name}</div><div class="ws">${w.sub}</div>`;
-    b.onclick=()=>{ if(phase==='aim'&&!(vsCOM&&cur===1)){ selWeapon=i; buildWeaponUI(); } };
+    b.onclick=()=>{ if(phase==='aim'&&!(vsCOM&&cur===1)){ weaponSel[cur]=i; buildWeaponUI(); } };
     weaponsEl.appendChild(b); }); }
 let lastHp=[100,100];
 function updateHUD(){ for(let i=0;i<2;i++){ const hp=Math.max(0,Math.round(robots[i].hp));
