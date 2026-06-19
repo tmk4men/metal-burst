@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="Arial, sans-serif">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1838"/>
+      <stop offset="0.5" stop-color="#0a1124"/>
+      <stop offset="1" stop-color="#070a14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.32" r="0.6">
+      <stop offset="0" stop-color="#1f8bff" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#1f8bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2faff"/>
+      <stop offset="0.6" stop-color="#7fd5ff"/>
+      <stop offset="1" stop-color="#1878e0"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe3ea"/>
+      <stop offset="1" stop-color="#ff4d6e"/>
+    </linearGradient>
+    <radialGradient id="moon" cx="0.35" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#eef4ff"/>
+      <stop offset="1" stop-color="#9fb0d8"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- stars -->
+  <g fill="#9fb6d6">
+    <circle cx="120" cy="90" r="2"/><circle cx="300" cy="60" r="1.5"/><circle cx="520" cy="110" r="1.5"/>
+    <circle cx="760" cy="70" r="2"/><circle cx="980" cy="120" r="1.5"/><circle cx="1080" cy="60" r="2"/>
+    <circle cx="200" cy="170" r="1.5"/><circle cx="640" cy="40" r="1.5"/><circle cx="900" cy="180" r="1.5"/>
+  </g>
+  <circle cx="1010" cy="120" r="60" fill="url(#moon)" opacity="0.95"/>
+  <g fill="#8b9cc2" opacity="0.4"><circle cx="995" cy="105" r="9"/><circle cx="1028" cy="132" r="6"/><circle cx="1000" cy="140" r="5"/></g>
+
+  <!-- mountains -->
+  <path d="M0 430 L160 360 L320 415 L480 350 L640 410 L820 345 L1000 405 L1200 360 L1200 630 L0 630 Z" fill="#0f2746"/>
+  <path d="M0 470 L220 410 L430 465 L660 405 L880 460 L1100 410 L1200 445 L1200 630 L0 630 Z" fill="#0d1f3a"/>
+
+  <!-- ground -->
+  <path d="M0 520 Q300 480 600 515 T1200 510 L1200 630 L0 630 Z" fill="#13351f"/>
+  <path d="M0 520 Q300 480 600 515 T1200 510" fill="none" stroke="#74f2a4" stroke-width="3" opacity="0.7"/>
+
+  <!-- left mech (cyan) -->
+  <g transform="translate(250 505)">
+    <rect x="-30" y="-44" width="60" height="50" rx="10" fill="#222d46" stroke="#4fd4f0" stroke-width="3"/>
+    <rect x="-16" y="-34" width="32" height="12" rx="3" fill="#4fd4f0"/>
+    <rect x="-22" y="6" width="14" height="16" fill="#1c2740"/><rect x="8" y="6" width="14" height="16" fill="#1c2740"/>
+    <rect x="10" y="-26" width="58" height="14" rx="6" fill="#28324e" stroke="#0c1526" stroke-width="2" transform="rotate(-20 10 -26)"/>
+  </g>
+  <!-- right mech (pink) -->
+  <g transform="translate(950 500)">
+    <rect x="-30" y="-44" width="60" height="50" rx="10" fill="#222d46" stroke="#ff6f8b" stroke-width="3"/>
+    <rect x="-16" y="-34" width="32" height="12" rx="3" fill="#ff6f8b"/>
+    <rect x="-22" y="6" width="14" height="16" fill="#1c2740"/><rect x="8" y="6" width="14" height="16" fill="#1c2740"/>
+    <rect x="-68" y="-26" width="58" height="14" rx="6" fill="#28324e" stroke="#0c1526" stroke-width="2" transform="rotate(20 -10 -26)"/>
+  </g>
+  <!-- projectile arc -->
+  <path d="M330 470 Q600 300 870 460" fill="none" stroke="#ffe27a" stroke-width="4" stroke-dasharray="3 10" stroke-linecap="round" opacity="0.85"/>
+  <circle cx="600" cy="362" r="6" fill="#ffe27a"/>
+
+  <!-- title -->
+  <text x="600" y="250" text-anchor="middle" font-size="118" font-weight="900" letter-spacing="6">
+    <tspan fill="url(#cyan)">METAL </tspan><tspan fill="url(#pink)">BURST</tspan>
+  </text>
+  <text x="600" y="300" text-anchor="middle" font-size="22" font-weight="700" letter-spacing="8" fill="#8298bb">TURN-BASED ROBOT ARTILLERY</text>
+  <text x="600" y="582" text-anchor="middle" font-size="24" font-weight="700" letter-spacing="2" fill="#aebfdc">ブラウザで今すぐ遊べる ロボ砲撃バトル</text>
+</svg>

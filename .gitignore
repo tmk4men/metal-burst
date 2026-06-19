@@ -1,0 +1,4 @@
+_tools/
+node_modules/
+*.log
+_c.js
