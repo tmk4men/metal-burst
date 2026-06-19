@@ -100,8 +100,11 @@
     letter-spacing:2px; color:var(--tx-dim); pointer-events:none; }
 
   #overlay{ position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; gap:20px; background:radial-gradient(circle at 50% 32%, #0e1730 0%, #080c18 58%, var(--bg) 100%); overflow:hidden; }
+    text-align:center; gap:20px; overflow:hidden;
+    background:radial-gradient(circle at 50% 40%, rgba(11,20,42,.42) 0%, rgba(7,11,22,.8) 55%, rgba(5,6,13,.93) 100%); }
   #overlay.hidden{ display:none; }
+  #overlay::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:2; opacity:.5;
+    background:repeating-linear-gradient(0deg, #0000 0 2px, #00000026 2px 4px); }
   #overlay .glowbg{ position:absolute; width:min(90vw,720px); height:min(90vw,720px); border-radius:50%; filter:blur(90px); opacity:.16;
     background:conic-gradient(from 0deg,var(--c1),var(--c2),var(--c1)); animation:spin 16s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg) } }
@@ -354,7 +357,7 @@ let aiTimer=0,aiPlan=null;
 let pad={ move:{active:false,id:-1,bx:0,by:0,tx:0,ty:0}, aim:{active:false,id:-1,bx:0,by:0,tx:0,ty:0} };
 let moveTimer=240, moveStarted=false; const keyState={};
 const PADR=()=>Math.min(W,H)*0.15;
-let shake=0,flash=0,flashColor='#ff2e57',msg='',msgTimer=0,tick=0;
+let shake=0,flash=0,flashColor='#ff2e57',msg='',msgTimer=0,tick=0,playing=false,hintUsed=false;
 const GRAV=0.32, MOVE_TIME=240, WALK=2.9, JUMP=7.6, HEAL=28;
 function aimVel(){ const a=pad.aim; if(!a.active) return {vx:0,vy:0,frac:0};
   const dx=a.tx-a.bx, dy=a.ty-a.by, len=Math.hypot(dx,dy), R=PADR(), frac=Math.min(1,len/R), mv=23;
@@ -376,6 +379,7 @@ function newGame(){
   projectiles=[];particles=[];dmgNums=[];items=[]; cur=0;phase='aim';weaponSel=[2,3];shake=0;flash=0; moveTimer=MOVE_TIME;moveStarted=false;
   setWind(); buildWeaponUI(); document.getElementById('stagetag').textContent='STAGE: '+STAGE_NAMES[curStyle];
   overlay.classList.add('hidden'); document.getElementById('resStat').style.display='none';
+  playing=true; document.getElementById('hud').style.visibility='visible';
   banner('PLAYER 1'); showHint(); updateHUD(); refreshActive();
 }
 const setWind=()=> wind=(Math.random()*2-1)*0.11;
@@ -474,7 +478,7 @@ function endTurnCheck(){ if(projectiles.length===0 && robotsResting()){ updateHU
     cur=1-cur; phase='aim'; pad.move.active=false; pad.aim.active=false; moveTimer=MOVE_TIME; moveStarted=false; setWind(); refreshActive(); banner(cur===0?'PLAYER 1':(vsCOM?'COM':'PLAYER 2'));
     if(items.length<2 && Math.random()<0.45) spawnItem();
     if(!(vsCOM&&cur===1)) showHint(); if(vsCOM&&cur===1){ aiTimer=45; aiPlan=null; } } }
-function gameOver(){ phase='over'; const alive=robots.findIndex(r=>r.hp>0); let title,sub;
+function gameOver(){ phase='over'; playing=false; document.getElementById('hud').style.visibility='hidden'; const alive=robots.findIndex(r=>r.hp>0); let title,sub;
   if(alive===-1){ title='DRAW'; sub='相打ち'; } else if(alive===0){ title='PLAYER 1 WIN'; sub='勝利'; }
   else { title=vsCOM?'COM WIN':'PLAYER 2 WIN'; sub=vsCOM?'敗北…':'勝利'; }
   const stat='残りHP '+Math.max(0,Math.round((robots[Math.max(0,alive)]||{}).hp||0))+' %';
@@ -539,7 +543,7 @@ function draw(){
   ctx.drawImage(tcan,0,0,W,H);
   drawItems();
   for(const r of robots) drawRobot(r);
-  if(phase==='aim'&&!(vsCOM&&cur===1)){ if(pad.aim.active) drawAim(); drawPads(); }
+  if(playing&&phase==='aim'&&!(vsCOM&&cur===1)){ if(pad.aim.active) drawAim(); drawPads(); }
   for(const p of projectiles){ ctx.strokeStyle=p.w.color+'55'; ctx.lineWidth=2; ctx.beginPath();
     p.trail.forEach((t,i)=> i?ctx.lineTo(t.x,t.y):ctx.moveTo(t.x,t.y)); ctx.stroke();
     ctx.fillStyle=p.w.color; ctx.shadowColor=p.w.color; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); ctx.shadowBlur=0; }
@@ -682,7 +686,7 @@ function updateFuel(){ const human=!(vsCOM&&cur===1);
 function refreshActive(){ document.getElementById('p1').classList.toggle('active',cur===0); document.getElementById('p2').classList.toggle('active',cur===1); buildWeaponUI(); updateFuel(); }
 function banner(t){ msg=t; msgTimer=78; }
 let hintT=null;
-function showHint(){ const h=document.getElementById('hint'); h.classList.add('show'); clearTimeout(hintT); hintT=setTimeout(hideHint,2800); }
+function showHint(){ if(hintUsed)return; hintUsed=true; const h=document.getElementById('hint'); h.classList.add('show'); clearTimeout(hintT); hintT=setTimeout(hideHint,3200); }
 function hideHint(){ document.getElementById('hint').classList.remove('show'); }
 document.getElementById('av1').innerHTML=AVA('#4fd4f0'); document.getElementById('av2').innerHTML=AVA('#ff5a7a');
 
@@ -695,7 +699,7 @@ function showResult(title,sub,stat){ overlay.classList.remove('hidden');
   document.getElementById('homeBlock').style.display='none';
   document.getElementById('startBtn').textContent='REMATCH';
   document.getElementById('homeBtn').style.display='inline-block'; }
-function showHome(){ overlay.classList.remove('hidden');
+function showHome(){ overlay.classList.remove('hidden'); playing=false; document.getElementById('hud').style.visibility='hidden';
   document.getElementById('logo').innerHTML='METAL <span class="b">BURST</span>';
   document.getElementById('tagline').textContent='TURN-BASED TANK ARTILLERY';
   document.getElementById('resStat').style.display='none';
@@ -717,7 +721,8 @@ window.addEventListener('orientationchange',()=>{ clearTimeout(rT); rT=setTimeou
 }, 300); });
 
 /* ---------- boot ---------- */
-fitCanvas(); genTerrain(); robots=[makeRobot(W*0.16,0),makeRobot(W*0.84,1)]; buildWeaponUI(); loop();
+fitCanvas(); genTerrain(); robots=[makeRobot(W*0.16,0),makeRobot(W*0.84,1)]; buildWeaponUI();
+document.getElementById('hud').style.visibility='hidden'; loop();
 </script>
 </body>
 </html>
