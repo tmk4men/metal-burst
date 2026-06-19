@@ -354,7 +354,7 @@ let pad={ move:{active:false,id:-1,bx:0,by:0,tx:0,ty:0}, aim:{active:false,id:-1
 let moveTimer=240, moveStarted=false; const keyState={};
 const PADR=()=>Math.min(W,H)*0.15;
 let shake=0,flash=0,flashColor='#ff2e57',msg='',msgTimer=0,tick=0;
-const GRAV=0.32, MOVE_TIME=240;
+const GRAV=0.32, MOVE_TIME=240, WALK=2.9, JUMP=7.6;
 function aimVel(){ const a=pad.aim; if(!a.active) return {vx:0,vy:0,frac:0};
   const dx=a.tx-a.bx, dy=a.ty-a.by, len=Math.hypot(dx,dy), R=PADR(), frac=Math.min(1,len/R), mv=23;
   const dir= len<0.001?{x:0,y:0}:{x:dx/len,y:dy/len}; return {vx:dir.x*mv*frac, vy:dir.y*mv*frac, frac}; }
@@ -364,12 +364,10 @@ function keyVec(){ const x=(keyState['ArrowRight']||keyState['d']?1:0)-(keyState
   const y=(keyState['ArrowDown']||keyState['s']?1:0)-(keyState['ArrowUp']||keyState['w']?1:0); return {x,y}; }
 function moveActive(){ const m=pad.move; if(m.active){ const dx=m.tx-m.bx,dy=m.ty-m.by,len=Math.hypot(dx,dy); if(len>PADR()*0.12) return {x:dx,y:dy,len}; }
   const k=keyVec(); if(k.x||k.y){ const R=PADR(),len=Math.hypot(k.x,k.y)*R; return {x:k.x*R,y:k.y*R,len}; } return null; }
-function blocked(x,y){ return isSolid(x,y+15)||isSolid(x-11,y)||isSolid(x+11,y)||isSolid(x,y-13); }
-function freeMove(r,v){ const R=PADR(), f=Math.min(1,v.len/R), sp=3.6*f, ux=v.x/v.len, uy=v.y/v.len, vx=ux*sp, vy=uy*sp;
-  const steps=Math.max(1,Math.ceil(Math.max(Math.abs(vx),Math.abs(vy))/2));
-  for(let s=0;s<steps;s++){ const nx=Math.max(14,Math.min(W-14,r.x+vx/steps)); if(!blocked(nx,r.y))r.x=nx;
-    const ny=Math.max(18,Math.min(H-18,r.y+vy/steps)); if(!blocked(r.x,ny))r.y=ny; }
-  r.vx=0; r.vy=0; r.grounded=false; }
+function control(r,mv){ const R=PADR();
+  r.vx=Math.max(-1,Math.min(1, mv.x/R))*WALK;                 // analog walk (left/right)
+  if(mv.y < -R*0.45 && r.grounded){ r.vy=-JUMP; r.grounded=false; }  // push up = single jump
+}
 function lockLandscape(){ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }
 function newGame(){
   actx(); lockLandscape(); fitCanvas(); genTerrain();
@@ -432,11 +430,19 @@ function stepParticles(){
 
 /* ---------- robots ---------- */
 function stepRobots(){
-  for(const r of robots){ if(r.recoil>0)r.recoil*=0.86; if(r.hp<=0)continue; r.vy+=GRAV; r.vx*=0.86; r.x+=r.vx; r.y+=r.vy;
-    if(r.x<14)r.x=14; if(r.x>W-14)r.x=W-14;
-    if(isSolid(r.x,r.y+16)){ let up=0; while(isSolid(r.x,r.y+16)&&up<80){r.y--;up++;}
-      if(r.vy>7){ const fd=Math.round((r.vy-7)*3); r.hp=Math.max(0,r.hp-fd); dmgNums.push({x:r.x,y:r.y-24,val:fd,life:1,vy:-0.7,color:'#ffd27a'}); }
-      r.vy=0; r.grounded=true; } else r.grounded=false;
+  for(const r of robots){ if(r.recoil>0)r.recoil*=0.86; if(r.hp<=0)continue;
+    r.vy+=GRAV; r.vx*=0.8;
+    // horizontal: move, climb gentle slopes, block on steep walls
+    const ox=r.x; r.x+=r.vx; if(r.x<14)r.x=14; if(r.x>W-14)r.x=W-14;
+    if(isSolid(r.x,r.y+15)){ let up=0; while(isSolid(r.x,r.y+15)&&up<13){r.y--;up++;}
+      if(isSolid(r.x,r.y+15)){ r.y+=up; r.x=ox; r.vx=0; } }
+    // vertical: gravity / land / ceiling
+    r.y+=r.vy;
+    if(r.vy>=0 && isSolid(r.x,r.y+16)){ let up=0; while(isSolid(r.x,r.y+16)&&up<70){r.y--;up++;}
+      if(r.vy>9){ const fd=Math.round((r.vy-9)*3); r.hp=Math.max(0,r.hp-fd); dmgNums.push({x:r.x,y:r.y-24,val:fd,life:1,vy:-0.7,color:'#ffd27a'}); }
+      r.vy=0; r.grounded=true; }
+    else if(r.vy<0 && isSolid(r.x,r.y-16)){ r.vy=0; }
+    else r.grounded=false;
     if(r.y>H+40)r.hp=0; }
 }
 const robotsResting=()=> robots.every(r=> r.hp<=0 || (r.grounded&&Math.abs(r.vy)<0.6&&Math.abs(r.vx)<0.4));
@@ -536,7 +542,7 @@ function drawWreck(){
 function drawRobot(r){
   const top=r.side===0, c=top?'#4fd4f0':'#ff6f8b', cd=top?'#1c9be0':'#ff3057', cl=top?'#cdf3ff':'#ffd6df';
   let ang; if(r.side===cur && phase==='aim' && pad.aim.active){ const v=aimVel(); ang=v.frac>0.02?Math.atan2(v.vy,v.vx):aimToFoe(r); } else ang=aimToFoe(r);
-  const rec=r.recoil||0, moving=(r.side===cur && moveStarted && moveTimer>0 && pad.move.active);
+  const rec=r.recoil||0, moving=(r.side===cur && moveStarted && moveTimer>0 && !!moveActive());
   ctx.save(); ctx.translate(r.x, r.y);
   // ground shadow
   ctx.fillStyle='#00000055'; ctx.beginPath(); ctx.ellipse(0,17,23,4.5,0,0,7); ctx.fill();
@@ -602,12 +608,12 @@ function loop(){ tick++;
   if(phase==='firing'){ stepProjectiles(); stepParticles(); stepRobots(); endTurnCheck(); }
   else{ stepParticles();
     const human=phase==='aim'&&!(vsCOM&&cur===1);
-    const mv=human?moveActive():null;
-    if(human){ if(mv&&!moveStarted)moveStarted=true; if(moveStarted&&moveTimer>0)moveTimer--; }
-    const flying=human&&mv&&moveStarted&&moveTimer>0;
-    if(!flying) stepRobots();
-    if(flying) freeMove(robots[cur],mv);
-    if(human) updateFuel();
+    if(human){ const mv=moveActive();
+      if(mv&&!moveStarted)moveStarted=true;
+      if(moveStarted&&moveTimer>0)moveTimer--;
+      if(mv&&moveStarted&&moveTimer>0) control(robots[cur],mv);
+      updateFuel(); }
+    stepRobots();
     if(phase==='aim'&&vsCOM&&cur===1){ if(aiPlan===null){ if(--aiTimer<=0)aiThink(); } else { aiTimer--; if(aiTimer<-25){ fire(robots[1],aiPlan.vx,aiPlan.vy,selWeapon); aiPlan=null; } } } }
   if(msgTimer>0)msgTimer--; draw(); requestAnimationFrame(loop);
 }
