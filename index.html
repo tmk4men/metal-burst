@@ -125,6 +125,18 @@
   @keyframes shine{ 0%{left:-60%} 55%,100%{left:140%} }
   .res-stat{ font-family:"Orbitron"; font-size:13px; letter-spacing:2px; color:var(--tx3); }
 
+  /* force landscape gate */
+  #rotate{ position:fixed; inset:0; z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; text-align:center; padding:30px; background:radial-gradient(circle at 50% 40%, #0e1730 0%, #080c18 60%, var(--bg) 100%); }
+  #rotate .phone{ width:74px; height:120px; border:4px solid #4fd4f0; border-radius:14px; position:relative;
+    box-shadow:0 0 26px -6px #4fd4f0; animation:tilt 2.4s ease-in-out infinite; }
+  #rotate .phone::before{ content:""; position:absolute; left:50%; bottom:6px; width:14px; height:3px; border-radius:2px; background:#4fd4f0; transform:translateX(-50%); }
+  #rotate .phone::after{ content:""; position:absolute; inset:8px 8px 16px; border-radius:5px; background:linear-gradient(180deg,#16223a,#0a1322); }
+  @keyframes tilt{ 0%,35%{transform:rotate(0)} 60%,100%{transform:rotate(90deg)} }
+  #rotate h2{ font-family:"Orbitron"; font-size:20px; letter-spacing:3px; color:var(--tx); }
+  #rotate p{ font-size:13px; letter-spacing:1px; color:var(--tx3); }
+  @media (orientation:portrait) and (max-width:1024px){ #rotate{ display:flex; } }
+
   @media (max-width:600px){
     .pinfo{ min-width:84px; } .hpbar{ width:80px; } .ava{ width:36px; height:36px; } .ava svg{width:21px;height:21px;}
     .player{ padding:7px 9px; gap:8px; } .hpnum{ width:24px; font-size:12px; }
@@ -147,10 +159,16 @@
     <div id="center"><div id="turn" class="orb">READY</div>
       <div id="windbox"><span>WIND</span><div id="windgauge"><div class="mid"></div><div class="fill" id="windfill"></div></div><span id="windval">--</span></div>
       <div id="fuelbox"><span>MOVE</span><div id="fuelgauge"><i id="fuelfill"></i></div></div></div>
-    <div id="hint">左半分=移動パッド(4秒・上下左右) ／ 右半分=照準して指を離すと発射</div>
+    <div id="hint">左下パッド=移動(4秒・上下左右) ／ 右下パッド=照準して指を離すと発射</div>
     <div id="stagetag"></div>
     <div id="weapons"></div>
   </div>
+</div>
+
+<div id="rotate">
+  <div class="phone"></div>
+  <h2>PLEASE ROTATE</h2>
+  <p>横画面（ヨコ向き）でプレイしてください</p>
 </div>
 
 <div id="overlay">
@@ -301,7 +319,7 @@ const PADR=()=>Math.min(W,H)*0.15;
 let shake=0,flash=0,flashColor='#ff2e57',msg='',msgTimer=0,tick=0;
 const GRAV=0.32, MOVE_TIME=240;
 function aimVel(){ const a=pad.aim; if(!a.active) return {vx:0,vy:0,frac:0};
-  const dx=a.tx-a.bx, dy=a.ty-a.by, len=Math.hypot(dx,dy), R=PADR()*1.7, frac=Math.min(1,len/R), mv=23;
+  const dx=a.tx-a.bx, dy=a.ty-a.by, len=Math.hypot(dx,dy), R=PADR(), frac=Math.min(1,len/R), mv=23;
   const dir= len<0.001?{x:0,y:0}:{x:dx/len,y:dy/len}; return {vx:dir.x*mv*frac, vy:dir.y*mv*frac, frac}; }
 
 function makeRobot(x,side){ return {x,y:surfaceY(x)-16,vx:0,vy:0,hp:100,side,grounded:true,recoil:0}; }
@@ -315,8 +333,9 @@ function freeMove(r,v){ const R=PADR(), f=Math.min(1,v.len/R), sp=3.6*f, ux=v.x/
   for(let s=0;s<steps;s++){ const nx=Math.max(14,Math.min(W-14,r.x+vx/steps)); if(!blocked(nx,r.y))r.x=nx;
     const ny=Math.max(18,Math.min(H-18,r.y+vy/steps)); if(!blocked(r.x,ny))r.y=ny; }
   r.vx=0; r.vy=0; r.grounded=false; }
+function lockLandscape(){ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }
 function newGame(){
-  actx(); fitCanvas(); genTerrain();
+  actx(); lockLandscape(); fitCanvas(); genTerrain();
   robots=[makeRobot(W*0.16,0),makeRobot(W*0.84,1)];
   projectiles=[];particles=[];dmgNums=[]; cur=0;phase='aim';selWeapon=0;shake=0;flash=0;
   setWind(); buildWeaponUI(); document.getElementById('stagetag').textContent='STAGE: '+STAGE_NAMES[curStyle];
@@ -499,15 +518,15 @@ function drawAim(){
   const a=Math.atan2(v.vy,v.vx); ctx.globalAlpha=.9; ctx.strokeStyle=v.frac>0.92?'#ff5a7a':w.color; ctx.lineWidth=3; ctx.lineCap='round';
   ctx.beginPath(); ctx.moveTo(r.x,r.y-6); ctx.lineTo(r.x+Math.cos(a)*26,r.y-6+Math.sin(a)*26); ctx.stroke(); ctx.lineCap='butt'; ctx.globalAlpha=1;
 }
-function drawPads(){
-  ctx.font='700 11px Orbitron,sans-serif'; ctx.textAlign='center';
-  ctx.globalAlpha=.16; ctx.fillStyle='#fff'; ctx.fillText('◍ MOVE', W*0.12, H-18); ctx.fillText('AIM ◎', W*0.88, H-18); ctx.globalAlpha=1;
-  drawStick(pad.move,'#7fe6ff'); drawStick(pad.aim,'#ffd98a');
-}
-function drawStick(pd,col){ if(!pd.active)return; const R=PADR(); let dx=pd.tx-pd.bx,dy=pd.ty-pd.by,len=Math.hypot(dx,dy); if(len>R){dx*=R/len;dy*=R/len;}
-  ctx.globalAlpha=.14; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(pd.bx,pd.by,R,0,7); ctx.fill(); ctx.globalAlpha=1;
-  ctx.strokeStyle=col+'77'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(pd.bx,pd.by,R,0,7); ctx.stroke();
-  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(pd.bx+dx,pd.by+dy,17,0,7); ctx.fill(); ctx.shadowBlur=0;
+function padBase(k){ const R=PADR(); return k==='move'?{x:R+22,y:H-R-14}:{x:W-R-22,y:H-R-14}; }
+function drawPads(){ drawBase(padBase('move'),'#7fe6ff','MOVE'); drawBase(padBase('aim'),'#ffd98a','AIM');
+  drawThumb(pad.move,'#7fe6ff'); drawThumb(pad.aim,'#ffd98a'); }
+function drawBase(b,col,label){ const R=PADR();
+  ctx.globalAlpha=.09; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(b.x,b.y,R,0,7); ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle=col+'55'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(b.x,b.y,R,0,7); ctx.stroke();
+  ctx.globalAlpha=.45; ctx.fillStyle=col; ctx.font='700 11px Orbitron,sans-serif'; ctx.textAlign='center'; ctx.fillText(label,b.x,b.y+4); ctx.globalAlpha=1; }
+function drawThumb(pd,col){ if(!pd.active)return; const R=PADR(); let dx=pd.tx-pd.bx,dy=pd.ty-pd.by,len=Math.hypot(dx,dy); if(len>R){dx*=R/len;dy*=R/len;}
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(pd.bx+dx,pd.by+dy,18,0,7); ctx.fill(); ctx.shadowBlur=0;
   ctx.fillStyle='#06101f'; ctx.beginPath(); ctx.arc(pd.bx+dx,pd.by+dy,5,0,7); ctx.fill(); }
 
 /* ---------- loop ---------- */
@@ -526,7 +545,7 @@ function loop(){ tick++;
 function pos(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
 function onDown(e){ if(phase!=='aim'||(vsCOM&&cur===1))return; e.preventDefault(); actx();
   const p=pos(e); const which=(e.pointerType==='mouse')?'aim':(p.x<W*0.5?'move':'aim'); const pd=pad[which];
-  if(pd.active)return; pd.active=true; pd.id=e.pointerId; pd.bx=pd.tx=p.x; pd.by=pd.ty=p.y; hideHint(); }
+  if(pd.active)return; const b=padBase(which); pd.active=true; pd.id=e.pointerId; pd.bx=b.x; pd.by=b.y; pd.tx=p.x; pd.ty=p.y; hideHint(); }
 function onMove(e){ for(const k of ['move','aim']){ const pd=pad[k]; if(pd.active&&pd.id===e.pointerId){ e.preventDefault(); const p=pos(e); pd.tx=p.x; pd.ty=p.y; } } }
 function onUp(e){ for(const k of ['move','aim']){ const pd=pad[k]; if(pd.active&&pd.id===e.pointerId){
     if(k==='aim'){ const v=aimVel(); if(v.frac>=0.12) fire(robots[cur],v.vx,v.vy,selWeapon); else showHint(); }
