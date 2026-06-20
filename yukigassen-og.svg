@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9f1fb"/><stop offset="1" stop-color="#c6d6ec"/></linearGradient>
+    <linearGradient id="riv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#48a6da"/><stop offset=".5" stop-color="#2f86c4"/><stop offset="1" stop-color="#3f9bd0"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <!-- river across the middle -->
+  <rect x="0" y="292" width="1200" height="46" fill="url(#riv)"/>
+  <rect x="0" y="287" width="1200" height="5" fill="#d7e5f5"/><rect x="0" y="338" width="1200" height="5" fill="#d7e5f5"/>
+  <g stroke="#ffffff" stroke-width="2" opacity=".4" fill="none"><path d="M0 305 Q120 300 240 305 T480 305 T720 305 T960 305 T1200 305"/><path d="M0 325 Q120 320 240 325 T480 325 T720 325 T960 325 T1200 325"/></g>
+  <!-- snow walls -->
+  <g><rect x="120" y="430" width="150" height="20" rx="8" fill="#c4d6ee"/><rect x="120" y="430" width="150" height="7" rx="5" fill="#f4faff"/>
+     <rect x="930" y="180" width="150" height="20" rx="8" fill="#c4d6ee"/><rect x="930" y="180" width="150" height="7" rx="5" fill="#f4faff"/></g>
+  <!-- blue dino (bottom) -->
+  <g transform="translate(360,470)"><ellipse cx="0" cy="0" rx="34" ry="40" fill="#7edcff" stroke="#0b1f33" stroke-opacity=".25" stroke-width="2"/>
+    <ellipse cx="0" cy="8" rx="20" ry="24" fill="#dff5ff"/><circle cx="0" cy="-26" r="22" fill="#7edcff" stroke="#0b1f33" stroke-opacity=".25" stroke-width="2"/>
+    <polygon points="-5,-46 5,-46 0,-56" fill="#2c93cf"/><circle cx="-7" cy="-30" r="4" fill="#fff"/><circle cx="7" cy="-30" r="4" fill="#fff"/><circle cx="-7" cy="-31" r="2" fill="#16324a"/><circle cx="7" cy="-31" r="2" fill="#16324a"/></g>
+  <!-- pink dino (top) -->
+  <g transform="translate(840,150) rotate(180)"><ellipse cx="0" cy="0" rx="34" ry="40" fill="#ff8aa0" stroke="#0b1f33" stroke-opacity=".25" stroke-width="2"/>
+    <ellipse cx="0" cy="8" rx="20" ry="24" fill="#ffe0e7"/><circle cx="0" cy="-26" r="22" fill="#ff8aa0" stroke="#0b1f33" stroke-opacity=".25" stroke-width="2"/>
+    <polygon points="-5,-46 5,-46 0,-56" fill="#d9536e"/><circle cx="-7" cy="-30" r="4" fill="#fff"/><circle cx="7" cy="-30" r="4" fill="#fff"/></g>
+  <!-- snowballs flying across -->
+  <g fill="#ffffff" stroke="#cfe2f7" stroke-width="1"><circle cx="520" cy="360" r="9"/><circle cx="640" cy="270" r="8"/><circle cx="730" cy="210" r="7"/></g>
+  <!-- title -->
+  <text x="600" y="120" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, sans-serif" font-weight="900" font-size="96" fill="#10314a" stroke="#ffffff" stroke-width="3" paint-order="stroke">ゆきがっせん</text>
+  <text x="600" y="556" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, sans-serif" font-weight="700" font-size="34" fill="#1c4b6e">トップダウン・チーム雪合戦 ／ ブラウザで今すぐ・無料</text>
+</svg>
