@@ -125,7 +125,8 @@ window.addEventListener('resize',()=>{ fitCanvas(); buildWorld(); layoutUI(); ch
   for(const r of P){ r.x=Math.max(18,Math.min(r.x,W-18)); r.y=groundY(r.x)-FOOT; r.vx=r.vy=0; r.grounded=true; } });
 
 /* ---------- constants ---------- */
-const GRAV=0.34;          // snowball / body gravity (world units / frame^2)
+const GRAV=0.34;          // body gravity (jump/fall) — unchanged so movement feel stays
+const BALL_GRAV=0.24;     // snowball gravity — lower = floatier/slower arc
 const MAXBALL=3;          // snowballs carried
 const WIN_HITS=3;         // HP per round (hits to KO)
 const ROUNDS_TO_WIN=2;    // best-of-3 match
@@ -281,7 +282,7 @@ function aimVec(){ const a=pad.aim; if(!a.active) return {ang:0,frac:0};
 
 /* ---------- throwing ---------- */
 function throwBall(p, ang, chargeFrac){
-  let power=8 + chargeFrac*9;                    // 8..17 launch speed
+  let power=4.5 + chargeFrac*7.5;                // 4.5 (tap) .. 12 (full charge) launch speed
   let size=3.2 + chargeFrac*3.6, charged=chargeFrac>0.66, big=false, freeze=false;
   if(p.bigT>0){ size*=1.9; power*=1.12; big=true; charged=true; }
   if(p.freezeT>0) freeze=true;
@@ -294,7 +295,7 @@ function throwBall(p, ang, chargeFrac){
 
 function stepBalls(){
   for(let i=balls.length-1;i>=0;i--){ const b=balls[i];
-    b.vy+=GRAV; b.vx+=wind*0.04; b.x+=b.vx; b.y+=b.vy; b.life++;
+    b.vy+=BALL_GRAV; b.vx+=wind*0.04; b.x+=b.vx; b.y+=b.vy; b.life++;
     b.trail.push({x:b.x,y:b.y}); if(b.trail.length>7)b.trail.shift();
     // out of bounds
     if(b.x<-40||b.x>W+40||b.y>H+40){ balls.splice(i,1); continue; }
@@ -426,9 +427,9 @@ function controlAI(){ const me=P[1], foe=P[0]; if(!me||over)return;
   else mvx=me.moveDir;
 
   // aim + charge + throw
-  if(!ai.wantThrow && me.cd<=0 && Math.random()<AP.throwChance){ const plan=aimAt(me,foe); if(plan){ ai.wantThrow=true; ai.throwAng=plan; ai.chargeT=8+(Math.random()*AP.chargeBias|0); } }
+  if(!ai.wantThrow && me.cd<=0 && Math.random()<AP.throwChance){ const plan=aimAt(me,foe); if(plan){ ai.wantThrow=true; ai.throwAng=plan.ang; ai.throwPw=plan.pw; ai.chargeT=8+(Math.random()*AP.chargeBias|0); } }
   if(ai.wantThrow){ charging=true; mvx*=0.4; if(--ai.chargeT<=0){
-      const cf=Math.min(1,(AP.chargeBias+Math.random()*12)/CHARGE_MAX);
+      const cf=Math.max(0,Math.min(1,(ai.throwPw-4.5)/7.5 + (Math.random()*2-1)*0.12));  // power matches the aimed shot
       throwBall(me, ai.throwAng + (Math.random()*2-1)*AP.err, cf); ai.wantThrow=false; } }
 
   applyMove(me,mvx,jump,charging);
@@ -438,11 +439,11 @@ function incoming(me){ for(const b of balls){ if(b.side===me.side)continue;
   const dx=me.x-b.x; if(Math.sign(dx)!==Math.sign(b.vx))continue; if(Math.abs(dx)<150 && Math.abs(b.y-(me.y-8))<90) return b; } return null; }
 function aimAt(me,foe){ const dir=foe.x<me.x?-1:1; let best=null;
   for(let ang=12;ang<78;ang+=4){ const a=ang*Math.PI/180;
-    for(let pw=8;pw<=17;pw+=1.5){ const vx=dir*Math.cos(a)*pw, vy=-Math.sin(a)*pw; const d=simShot(me.x,me.y,vx,vy);
-      if(best===null||d<best.d) best={ang:Math.atan2(vy,vx),d}; } }
-  return best?best.ang:null; }
+    for(let pw=4.5;pw<=12;pw+=1){ const vx=dir*Math.cos(a)*pw, vy=-Math.sin(a)*pw; const d=simShot(me.x,me.y,vx,vy);
+      if(best===null||d<best.d) best={ang:Math.atan2(vy,vx),d,pw}; } }
+  return best?{ang:best.ang,pw:best.pw}:null; }
 function simShot(sx,sy,vx,vy){ const foe=P[0]; let x=sx+Math.cos(Math.atan2(vy,vx))*16,y=sy-8,md=1e9;
-  for(let t=0;t<260;t++){ vy+=GRAV; vx+=wind*0.04; x+=vx; y+=vy; const d=Math.hypot(x-foe.x,y-(foe.y-8)); if(d<md)md=d;
+  for(let t=0;t<260;t++){ vy+=BALL_GRAV; vx+=wind*0.04; x+=vx; y+=vy; const d=Math.hypot(x-foe.x,y-(foe.y-8)); if(d<md)md=d;
     for(const m of mounds){ if(Math.hypot(x-m.x,y-m.y)<m.r*0.62){ return md+60; } }
     if(x<0||x>W||y>groundY(x))break; } return md; }
 
@@ -648,7 +649,7 @@ function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=a
   const cf=me.charge/CHARGE_MAX, power=8+cf*9;
   const ang = v.frac>=0.08 ? v.ang : aimAtFoe(me);
   let x=me.x+Math.cos(ang)*16, y=me.y-8+Math.sin(ang)*16, vx=Math.cos(ang)*power, vy=Math.sin(ang)*power;
-  uctx.fillStyle='#eaf6ff'; for(let t=0;t<18;t++){ vy+=GRAV; vx+=wind*0.04; x+=vx; y+=vy;
+  uctx.fillStyle='#eaf6ff'; for(let t=0;t<18;t++){ vy+=BALL_GRAV; vx+=wind*0.04; x+=vx; y+=vy;
     uctx.globalAlpha=(1-t/18)*0.75; uctx.beginPath(); uctx.arc(x,y,2.1,0,7); uctx.fill(); if(y>groundY(x))break; }
   uctx.globalAlpha=1;
   // charge bar above the player
