@@ -262,16 +262,27 @@ function stepBalls(){
   }
   mounds=mounds.filter(m=>{ if(m.hp<=0){ puff(m.x,m.y,'#dbe8ff',m.r*0.8); return false; } return true; });
 }
-function hitPlayer(foe,b){ if(over)return; foe.stun=STUN_FRAMES; foe.flash=1; foe.vx+=Math.sign(b.vx)*(b.charged?5.5:3.2); foe.vy-=2.4;
-  P[b.side].hits++; shake=Math.max(shake,b.charged?9:6); puff(foe.x,foe.y-8,'#ffffff',7); sfxPof();
-  if(P[b.side].hits>=WIN_HITS){ endGame(b.side); } }
+function hitPlayer(foe,b){ if(over||winner>=0)return; foe.stun=STUN_FRAMES; foe.flash=1;
+  foe.vx+=Math.sign(b.vx)*(b.charged?6.5:3.6); foe.vy-=2.6;
+  const tcol = b.side===0?'#5fd0ff':'#ff7a8e';
+  P[b.side].hits++; shake=Math.max(shake,b.charged?12:8); hitstop=b.charged?8:5;
+  puff(foe.x,foe.y-8,'#ffffff', b.charged?11:7); pushFloater(foe.x,foe.y-26,'+1',tcol); sfxPof();
+  if(P[b.side].hits>=WIN_HITS){ winner=b.side; hitstop=18; shake=16;
+    pushFloater(foe.x,foe.y-26,'K.O.','#fff'); setTimeout(()=>endGame(winner),520); } }
+function pushFloater(x,y,text,col){ floaters.push({x,y,vy:-0.9,life:1,text,col}); }
+function stepFloaters(){ for(let i=floaters.length-1;i>=0;i--){ const f=floaters[i]; f.y+=f.vy; f.vy*=0.95; f.life-=0.016; if(f.life<=0)floaters.splice(i,1); } }
+function drawFloaters(){ uctx.textAlign='center';
+  for(const f of floaters){ uctx.globalAlpha=Math.min(1,f.life*1.5); uctx.fillStyle=f.col;
+    uctx.font='800 '+(f.text.length>2?16:20)+'px Orbitron,sans-serif'; uctx.shadowColor='rgba(2,8,18,.8)'; uctx.shadowBlur=5;
+    uctx.fillText(f.text,f.x,f.y-(1-f.life)*8); }
+  uctx.shadowBlur=0; uctx.globalAlpha=1; }
 
 /* ---------- particles ---------- */
 function puff(x,y,c,r){ for(let i=0;i<6+r|0;i++){ const a=Math.random()*7,s=0.5+Math.random()*2.4;
   puffs.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-0.6,life:1,c,r:1+Math.random()*r*0.4}); } }
 function stepPuffs(){ for(let i=puffs.length-1;i>=0;i--){ const p=puffs[i]; p.vy+=0.12; p.x+=p.vx; p.y+=p.vy; p.vx*=0.96; p.life-=0.045;
   if(p.life<=0)puffs.splice(i,1); } }
-let shake=0;
+let shake=0, hitstop=0, winner=-1, floaters=[];
 
 /* ---------- player physics & control ---------- */
 function controlHuman(){ const me=P[0]; if(!me||over)return;
@@ -540,7 +551,7 @@ function rrect(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,
 function drawUI(){
   uctx.setTransform(uiScale,0,0,uiScale,0,0); uctx.clearRect(0,0,W,H);
   uctx.imageSmoothingEnabled=true; uctx.lineCap='round'; uctx.lineJoin='round'; uctx.textBaseline='alphabetic';
-  if(playing&&!over){ drawAimPreview(); drawReloadHint(); drawPads(); drawPackBtn(); drawHUD(); }
+  if(playing&&!over){ drawAimPreview(); drawReloadHint(); drawPads(); drawPackBtn(); drawHUD(); drawFloaters(); }
 }
 
 function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=aimVec();
@@ -631,8 +642,9 @@ function drawPip(cx,cy,r,on,col,col2){
 
 /* ---------- loop ---------- */
 function loop(){ tick++;
-  if(playing&&!over){ regrowSnow(); controlHuman(); controlAI(); stepBalls(); stepPuffs(); }
-  else { stepPuffs(); }
+  if(hitstop>0)hitstop--;
+  if(playing&&!over&&hitstop<=0){ regrowSnow(); controlHuman(); controlAI(); stepBalls(); stepPuffs(); stepFloaters(); }
+  else { stepPuffs(); stepFloaters(); }
   draw();
   requestAnimationFrame(loop);
 }
@@ -651,7 +663,7 @@ function showHome(){ playing=false; over=false; resetInput();
 }
 function startGame(){ actx(); fitCanvas(); buildWorld(); layoutUI();
   wind=(Math.random()*2-1)*1.4;
-  P=[makePlayer(0),makePlayer(1)]; balls=[]; puffs=[]; over=false; playing=true;
+  P=[makePlayer(0),makePlayer(1)]; balls=[]; puffs=[]; floaters=[]; winner=-1; hitstop=0; over=false; playing=true;
   resetInput();
   ai={think:0,wantThrow:false,throwAng:0,chargeT:0,moveDir:0,moveT:0,dodgeT:0};
   ovEl.classList.add('hide');
