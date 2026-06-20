@@ -29,9 +29,10 @@
 
   /* overlay (home / result) */
   #overlay{ position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center; text-align:center;
-    background:radial-gradient(120% 120% at 50% 30%, #112banner 0%, #081223 60%, #060b16 100%); }
+    overflow:auto; padding:16px;
+    background:radial-gradient(120% 120% at 50% 30%, #112b4a 0%, #081223 60%, #060b16 100%); }
   #overlay.hide{ display:none; }
-  .inner{ display:flex; flex-direction:column; align-items:center; gap:18px; padding:24px; }
+  .inner{ display:flex; flex-direction:column; align-items:center; gap:18px; padding:24px; margin:auto; max-width:560px; }
   #logo{ font-family:"Noto Sans JP",sans-serif; font-weight:900; font-size:clamp(40px,10vw,82px); letter-spacing:6px; color:var(--tx);
     text-shadow:0 0 26px #5fd0ff55, 0 4px 0 #0a1426; line-height:1; }
   #logo .b{ color:var(--c1); }
@@ -47,6 +48,18 @@
   .howto b{ color:var(--tx); }
   .key{ display:inline-block; padding:1px 7px; border-radius:6px; background:#16243e; border:1px solid #2a3c5c; color:#cfe2ff; font-size:12px; }
   .credit{ font-size:11px; color:#6f86a8; }
+  /* responsive: short landscape phones */
+  @media (max-height:480px){
+    .inner{ gap:9px; padding:10px; }
+    #logo{ font-size:clamp(30px,9vh,52px); letter-spacing:4px; }
+    #logo .on{ font-size:11px; letter-spacing:6px; margin-top:5px; }
+    .tagline{ font-size:9px; letter-spacing:3px; }
+    .howto{ font-size:11px; line-height:1.5; }
+    .start{ padding:11px 26px; font-size:16px; }
+    .credit{ display:none; }
+    #resTitle{ font-size:clamp(24px,7vh,40px); }
+  }
+  @media (max-width:600px){ .howto{ max-width:92vw; } }
 </style>
 </head>
 <body>
@@ -62,7 +75,7 @@
     <div id="resSub"></div>
     <button class="start orb" id="startBtn">SNOWBALL FIGHT</button>
     <div class="howto" id="howto">
-      <b>左パッド</b>＝移動／上にはじくとジャンプ &nbsp;・&nbsp; <b>右パッド</b>＝ねらう・長押しでチャージ→指をはなして投げる<br>
+      <b>左パッド</b>＝移動／上にはじくとジャンプ &nbsp;・&nbsp; <b>右パッド</b>＝長押しで<b>チャージ</b>（その場でOK）→指をはなして投げる。ドラッグで方向、軽くはなせば相手に自動で山なり投げ<br>
       <b>中央ボタン</b>＝しゃがんで雪をつくる（雪玉の補充）。雪玉は手持ち <b>3個</b>、撃ち切ったら補充。<br>
       補充できるのは<b>雪が積もった白い地面の上だけ</b>（水色のツルツル氷ではムリ）。<br>
       雪山のかげに<b>隠れて</b>避けながら、相手に <b>5回</b> 当てたら勝ち。
@@ -81,7 +94,8 @@ function fitCanvas(){
   const pw=Math.max(180,Math.round(VW/PX)), ph=Math.max(140,Math.round(VH/PX));
   cv.width=pw; cv.height=ph; drawScale=pw/W;
 }
-window.addEventListener('resize',()=>{ fitCanvas(); buildWorld(); checkRotate(); });
+window.addEventListener('resize',()=>{ fitCanvas(); buildWorld(); layoutUI(); checkRotate();
+  if(P[0]){ P[0].x=Math.min(P[0].x,W-18); P[1].x=Math.min(P[1].x,W-18); } });
 
 /* ---------- constants ---------- */
 const GRAV=0.34;          // snowball / body gravity (world units / frame^2)
@@ -133,9 +147,11 @@ function buildWorld(){
   // snow zones: deep snow (packable) vs bare ice — drives where you can reload
   snowMax=new Float32Array(n); snowDepth=new Float32Array(n);
   for(let i=0;i<n;i++){ const x=i*GSTEP;
-    let v=0.5+0.5*Math.sin(x*0.0052+2.1)+0.28*Math.sin(x*0.015+0.7)+0.12*Math.sin(x*0.031+4.0);
-    v=Math.max(0,Math.min(1,(v-0.35)/0.9));
-    snowMax[i]=v<0.18?0:0.45+v*0.55; snowDepth[i]=snowMax[i]; }
+    let v=0.6+0.45*Math.sin(x*0.0052+2.1)+0.3*Math.sin(x*0.015+0.7)+0.12*Math.sin(x*0.031+4.0);
+    v=Math.max(0,Math.min(1,(v-0.15)/0.9));
+    snowMax[i]=v<0.1?0:0.55+v*0.45; snowDepth[i]=snowMax[i]; }
+  // guarantee deep snow around both spawns and the center so you can ALWAYS reload nearby
+  [0.14,0.5,0.86].forEach(fx=>{ const c=(W*fx/GSTEP)|0; for(let k=-7;k<=7;k++){ const j=c+k; if(j>=0&&j<n){ snowMax[j]=Math.max(snowMax[j],0.95); snowDepth[j]=snowMax[j]; } } });
   // cover mounds (snow forts) — a few between the players
   mounds=[];
   const my=(fx)=>groundY(W*fx);
@@ -191,11 +207,16 @@ const keys={};
 window.addEventListener('keydown',e=>{ keys[e.key]=true; if(e.key===' ')e.preventDefault(); });
 window.addEventListener('keyup',e=>{ keys[e.key]=false; });
 
-function releaseThrow(){ const me=P[0]; if(!me)return; me.charging=false;
-  const v=aimVec(); if(v.frac<0.04){ me.charge=0; return; }
-  if(me.balls>0 && me.cd<=0 && me.stun<=0 && me.packing<=0){ throwBall(me, v.ang, me.charge/CHARGE_MAX); }
+function releaseThrow(){ const me=P[0]; if(!me)return; const was=me.charging; me.charging=false;
+  if(!was){ me.charge=0; return; }
+  const v=aimVec();
+  const ang = v.frac>=0.08 ? v.ang : aimAtFoe(me);   // tiny/no drag -> auto-aim a lobbed shot at the opponent
+  if(me.balls>0 && me.cd<=0 && me.stun<=0 && me.packing<=0){ throwBall(me, ang, me.charge/CHARGE_MAX); }
   me.charge=0;
 }
+function aimAtFoe(me){ const foe=P[1-me.side]; const dir=(foe&&foe.x<me.x)?-1:1;
+  const dist=foe?Math.abs(foe.x-me.x):W*0.3; const up=Math.min(0.95,0.4+dist/W*0.6);
+  return Math.atan2(-up, dir); }
 function aimVec(){ const a=pad.aim; if(!a.active) return {ang:0,frac:0};
   let dx=a.tx-a.bx, dy=a.ty-a.by; const len=Math.hypot(dx,dy); const R=PADR();
   const frac=Math.min(1,len/R); return {ang:Math.atan2(dy,dx),frac}; }
@@ -264,7 +285,7 @@ function controlHuman(){ const me=P[0]; if(!me||over)return;
 }
 function applyMove(p,mvx,jump,charging){
   if(p.stun>0){ p.stun--; mvx=0; jump=false; }
-  const spd = charging?2.4:3.8;             // slower while winding up a throw
+  const spd = charging?1.4:2.3;             // walking pace (slower); even slower while winding up a throw
   p.vx += mvx*spd*0.5; p.vx*=0.78;
   if(Math.abs(mvx)>0.05)p.face=mvx>0?1:-1;
   if(jump && p.grounded){ p.vy=-8.2; p.grounded=false; }
@@ -389,7 +410,7 @@ function draw(){
   for(const p of puffs){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
   ctx.globalAlpha=1;
   // aim preview + pads + pack button (human)
-  if(playing&&!over){ drawAimPreview(); drawPads(); drawPackBtn(); }
+  if(playing&&!over){ drawAimPreview(); drawReloadHint(); drawPads(); drawPackBtn(); }
   ctx.restore();
   drawHUD();
 }
@@ -485,18 +506,31 @@ function drawPlayer(p){
   ctx.restore();
 }
 
-function drawAimPreview(){ const me=P[0]; if(!me||!pad.aim.active)return; const v=aimVec(); if(v.frac<0.04)return;
+function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=aimVec();
   const cf=me.charge/CHARGE_MAX, power=8+cf*9;
-  let x=me.x+Math.cos(v.ang)*16, y=me.y-8+Math.sin(v.ang)*16, vx=Math.cos(v.ang)*power, vy=Math.sin(v.ang)*power;
-  ctx.fillStyle='#ffffff'; for(let t=0;t<14;t++){ vy+=GRAV; vx+=wind*0.04; x+=vx; y+=vy;
-    ctx.globalAlpha=(1-t/14)*0.7; ctx.beginPath(); ctx.arc(x,y,2,0,7); ctx.fill(); if(y>groundY(x))break; }
+  const ang = v.frac>=0.08 ? v.ang : aimAtFoe(me);   // matches releaseThrow: preview the auto-aim too
+  let x=me.x+Math.cos(ang)*16, y=me.y-8+Math.sin(ang)*16, vx=Math.cos(ang)*power, vy=Math.sin(ang)*power;
+  ctx.fillStyle='#ffffff'; for(let t=0;t<16;t++){ vy+=GRAV; vx+=wind*0.04; x+=vx; y+=vy;
+    ctx.globalAlpha=(1-t/16)*0.7; ctx.beginPath(); ctx.arc(x,y,2,0,7); ctx.fill(); if(y>groundY(x))break; }
   ctx.globalAlpha=1;
-  // charge bar
+  // charge bar (always visible while holding)
   const col=cf<0.5?'#9dff6b':cf<0.8?'#ffd45e':'#ff6f8b';
-  ctx.save(); ctx.translate(me.x,me.y-30); ctx.fillStyle='#0008'; ctx.fillRect(-14,0,28,4);
-  ctx.fillStyle=col; ctx.fillRect(-14,0,28*cf,4); ctx.restore();
+  ctx.save(); ctx.translate(me.x,me.y-32);
+  ctx.fillStyle='#0009'; ctx.fillRect(-15,-1,30,6);
+  ctx.fillStyle=col; ctx.fillRect(-14,0,28*cf,4);
+  if(cf>0.99){ ctx.fillStyle='#fff'; ctx.font='700 7px Orbitron,sans-serif'; ctx.textAlign='center'; ctx.fillText('MAX',0,-4); }
+  ctx.restore();
 }
 
+function drawReloadHint(){ const me=P[0]; if(!me||me.balls>0)return; ctx.textAlign='center';
+  ctx.globalAlpha=0.55+0.45*Math.sin(tick*0.12);
+  if(canPackAt(me.x)){ ctx.fillStyle='#9dff6b'; ctx.font='700 11px "Exo 2",sans-serif'; ctx.fillText('PACKで補充',me.x,me.y-42); }
+  else { const sx=nearestSnowX(me.x); if(sx!=null){ const dir=sx<me.x?-1:1;
+    ctx.save(); ctx.translate(me.x,me.y-44); ctx.fillStyle='#cfe2ff'; ctx.font='700 10px "Exo 2",sans-serif'; ctx.fillText('雪へ',0,-4);
+    ctx.strokeStyle='#cfe2ff'; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-dir*9,4); ctx.lineTo(dir*9,4); ctx.lineTo(dir*3,-1); ctx.moveTo(dir*9,4); ctx.lineTo(dir*3,9); ctx.stroke(); ctx.restore(); } }
+  ctx.globalAlpha=1;
+}
 function drawPads(){
   drawPad(pad.move,'#7fe6ff'); drawPad(pad.aim,'#ffd98a');
   // resting hints
