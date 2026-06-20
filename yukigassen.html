@@ -18,7 +18,7 @@
   .orb{ font-family:"Orbitron",sans-serif; }
   #stage{ position:fixed; inset:0; }
   #stage canvas{ position:absolute; inset:0; width:100%; height:100%; }
-  canvas#cv{ z-index:1; touch-action:none; background:#0c1830; }
+  canvas#cv{ z-index:1; touch-action:none; background:#0c1830; image-rendering:pixelated; image-rendering:crisp-edges; }
   canvas#ui{ z-index:3; pointer-events:none; }
   #stage::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
     background:radial-gradient(135% 135% at 50% 45%, #0000 60%, #00000050 100%); }
@@ -73,10 +73,10 @@
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 const uic=document.getElementById('ui'), uctx=uic.getContext('2d');
-let W=720,H=1280,VW=720,VH=1280,DPR=1,scl=1,uscl=1,FH=1280;
+let W=720,H=1280,VW=720,VH=1280,DPR=1,scl=1,uscl=1,FH=1280; const PXART=2;   // scene art-pixel size (CSS px) — light, fine pixelation
 function fitCanvas(){ VW=Math.max(300,Math.floor(window.innerWidth)); VH=Math.max(360,Math.floor(window.innerHeight));
   DPR=Math.min(window.devicePixelRatio||1,2); W=VW; H=VH;
-  cv.width=Math.round(VW*DPR); cv.height=Math.round(VH*DPR); scl=cv.width/W;
+  cv.width=Math.round(VW/PXART); cv.height=Math.round(VH/PXART); scl=cv.width/W;   // low-res scene buffer -> upscaled crisp (dot-art)
   uic.width=Math.round(VW*DPR); uic.height=Math.round(VH*DPR); uscl=uic.width/W;
   const pr=Math.max(58,Math.min(W,H)*0.16); FH=H-Math.round(pr*2+40); }   // reserve bottom band for the pads (+gutter)
 window.addEventListener('resize',()=>{ fitCanvas(); if(!playing)buildArena(); layoutUI(); checkRotate(); });
@@ -204,7 +204,7 @@ function stepPuffs(){ for(let i=puffs.length-1;i>=0;i--){ const p=puffs[i]; p.x+
 let shake=0;
 
 /* ---------- render ---------- */
-function draw(){ ctx.setTransform(scl,0,0,scl,0,0); ctx.imageSmoothingEnabled=true;
+function draw(){ ctx.setTransform(scl,0,0,scl,0,0); ctx.imageSmoothingEnabled=false;   // crisp pixels for the dot-art scene
   ctx.save(); if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.85; } else shake=0;
   // snow field (top area)
   const g=ctx.createLinearGradient(0,0,0,FH); g.addColorStop(0,'#e6eff9'); g.addColorStop(1,'#c6d6ec'); ctx.fillStyle=g; ctx.fillRect(0,0,W,FH);
