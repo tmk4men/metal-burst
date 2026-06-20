@@ -77,7 +77,7 @@
     <div class="howto" id="howto">
       <b>左パッド</b>＝移動／上にはじくとジャンプ &nbsp;・&nbsp; <b>右パッド</b>＝長押しで<b>チャージ</b>（その場でOK）→指をはなして投げる。ドラッグで方向、軽くはなせば相手に自動で山なり投げ<br>
       <b>中央ボタン</b>＝しゃがんで雪をつくる（雪玉の補充）。雪玉は手持ち <b>3個</b>、撃ち切ったら補充。<br>
-      補充できるのは<b>雪が積もった白い地面の上だけ</b>（水色のツルツル氷ではムリ）。<br>
+      補充できるのは<b>光っている白い「雪だまり」の上だけ</b>（地面の数か所・目印マーカーつき）。<br>
       雪山のかげに<b>隠れて</b>避けながら、相手に <b>5回</b> 当てたら勝ち。
     </div>
     <div class="credit">プロトタイプ ／ 横画面・スマホ対応 ／ オリジナル作品</div>
@@ -128,6 +128,7 @@ let snowMax=new Float32Array(2);           // regrow target per sample
 let mounds=[];       // cover: {x,y,r,hp,max}
 let snowflakes=[];   // bg particles
 let bgHills=[], trees=[], cabins=[], townLights=[];
+let snowPiles=[];    // discrete, clearly-marked refill spots {x,r}
 let wind=0;
 
 function groundY(x){ const i=Math.max(0,Math.min(ground.length-1,x/GSTEP)); const i0=i|0, f=i-i0;
@@ -144,14 +145,11 @@ function buildWorld(){
   const base=H*0.78;
   for(let i=0;i<n;i++){ const x=i*GSTEP;
     ground[i]=base - 26*Math.sin(x*0.0042+1.1) - 14*Math.sin(x*0.011+0.4) - 8*Math.sin(x*0.02+2.0); }
-  // snow zones: deep snow (packable) vs bare ice — drives where you can reload
+  // reload ONLY at discrete, clearly-marked snow piles — the rest of the ground is packed (no reload)
   snowMax=new Float32Array(n); snowDepth=new Float32Array(n);
-  for(let i=0;i<n;i++){ const x=i*GSTEP;
-    let v=0.6+0.45*Math.sin(x*0.0052+2.1)+0.3*Math.sin(x*0.015+0.7)+0.12*Math.sin(x*0.031+4.0);
-    v=Math.max(0,Math.min(1,(v-0.15)/0.9));
-    snowMax[i]=v<0.1?0:0.55+v*0.45; snowDepth[i]=snowMax[i]; }
-  // guarantee deep snow around both spawns and the center so you can ALWAYS reload nearby
-  [0.14,0.5,0.86].forEach(fx=>{ const c=(W*fx/GSTEP)|0; for(let k=-7;k<=7;k++){ const j=c+k; if(j>=0&&j<n){ snowMax[j]=Math.max(snowMax[j],0.95); snowDepth[j]=snowMax[j]; } } });
+  snowPiles=[]; [0.13,0.37,0.63,0.87].forEach(fx=>{ snowPiles.push({x:W*fx, r:Math.max(34,W*0.035)}); });
+  for(const p of snowPiles){ const c=(p.x/GSTEP)|0, rad=Math.max(2,(p.r/GSTEP)|0);
+    for(let k=-rad;k<=rad;k++){ const j=c+k; if(j>=0&&j<n){ const f=1-Math.abs(k)/rad; const v=0.6+0.4*f; if(v>snowMax[j]){ snowMax[j]=v; snowDepth[j]=v; } } } }
   // cover mounds (snow forts) — a few between the players
   mounds=[];
   const my=(fx)=>groundY(W*fx);
@@ -278,6 +276,8 @@ function controlHuman(){ const me=P[0]; if(!me||over)return;
   if(wantPack){ mvx=0; me.packAcc++; depleteSnow(me.x,0.012);
     if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; sfxPack(); puff(me.x,me.y+12,'#ffffff',5); depleteSnow(me.x,0.18); } }
   else me.packAcc=Math.max(0,me.packAcc-2);
+  // safety: if the aim pointer was lost (no pointerup), don't leave the player stuck charging/slowed
+  if(me.charging && !pad.aim.active){ me.charging=false; me.charge=0; }
   // charge build-up while aiming
   if(me.charging && me.balls>0 && me.stun<=0 && me.packing<=0) me.charge=Math.min(CHARGE_MAX,me.charge+1);
   applyMove(me,mvx,jump,me.charging);
@@ -371,28 +371,19 @@ function draw(){
   ctx.fillStyle=hz; ctx.fillRect(0,H*0.46,W,H*0.22);
   // trees (behind ground line)
   for(const tr of trees) drawPine(tr);
-  // ground (snow field base)
-  ctx.fillStyle='#e7f0ff'; ctx.beginPath(); ctx.moveTo(0,H); let gx=0;
+  // ground — packed snow (plain, muted) so the bright refill piles clearly stand out
+  const gg=ctx.createLinearGradient(0,H*0.7,0,H); gg.addColorStop(0,'#9fb2cc'); gg.addColorStop(1,'#7d92b0');
+  ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,H); let gx=0;
   for(let i=0;i<ground.length;i++){ ctx.lineTo(gx,ground[i]); gx+=GSTEP; } ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
-  // surface zones: deep snow (white, packable) vs bare ice (cyan, slick)
-  for(let i=0;i<ground.length-1;i++){ const x=i*GSTEP, y=ground[i], d=snowDepth[i];
-    if(d>0.3){ const th=2+d*5; ctx.fillStyle='#ffffff'; ctx.fillRect(x,y-th,GSTEP+1,th+2); }
-    else { ctx.fillStyle='#bfe6ff'; ctx.fillRect(x,y,GSTEP+1,4);
-      ctx.globalAlpha=.5; ctx.fillStyle='#eaffff'; ctx.fillRect(x,y,GSTEP+1,1.4); ctx.globalAlpha=1; } }
-  // sparkles on deep snow
-  ctx.fillStyle='#ffffff';
-  for(let i=2;i<ground.length-2;i+=5){ if(snowDepth[i]>0.6 && (i*7+tick*0)%13<2){ const x=i*GSTEP; ctx.globalAlpha=.4+.4*Math.sin(tick*0.08+i); ctx.fillRect(x,ground[i]-6,1.4,1.4); } }
-  ctx.globalAlpha=1;
-  // snow glow: deep-snow ground softly emits light upward
-  ctx.save(); ctx.globalCompositeOperation='lighter';
-  for(let i=0;i<ground.length-1;i+=2){ const d=snowDepth[i]; if(d<=0.3)continue; const x=i*GSTEP, y=ground[i], gh=9+d*11;
-    const sg=ctx.createLinearGradient(0,y-gh,0,y); sg.addColorStop(0,'rgba(190,226,255,0)'); sg.addColorStop(1,'rgba(198,228,255,'+(0.045+d*0.05).toFixed(3)+')');
-    ctx.fillStyle=sg; ctx.fillRect(x-1,y-gh,GSTEP*2+2,gh); }
-  ctx.restore();
-  // mounds (cover)
-  for(const m of mounds){ ctx.fillStyle='#f4f9ff'; ctx.beginPath(); ctx.ellipse(m.x,m.y+m.r*0.35,m.r,m.r*0.8,0,Math.PI,0); ctx.fill();
-    ctx.fillStyle='#d4e3f6'; ctx.beginPath(); ctx.ellipse(m.x+m.r*0.3,m.y+m.r*0.4,m.r*0.6,m.r*0.5,0,Math.PI,0); ctx.fill();
-    ctx.globalAlpha=0.5; ctx.fillStyle='#c2d4ee'; ctx.fillRect(m.x-m.r,m.y+m.r*0.3,m.r*2,2); ctx.globalAlpha=1; }
+  // thin lighter crust line along the surface
+  ctx.strokeStyle='#bccbe0'; ctx.lineWidth=2.5; ctx.beginPath(); gx=0;
+  for(let i=0;i<ground.length;i++){ i?ctx.lineTo(gx,ground[i]):ctx.moveTo(gx,ground[i]); gx+=GSTEP; } ctx.stroke();
+  // refill snow piles — bright, glowing, clearly marked
+  for(const p of snowPiles) drawSnowPile(p);
+  // mounds (cover forts) — muted blue so they don't look like refill piles
+  for(const m of mounds){ ctx.fillStyle='#c4d3e8'; ctx.beginPath(); ctx.ellipse(m.x,m.y+m.r*0.35,m.r,m.r*0.8,0,Math.PI,0); ctx.fill();
+    ctx.fillStyle='#aebfd8'; ctx.beginPath(); ctx.ellipse(m.x+m.r*0.3,m.y+m.r*0.4,m.r*0.6,m.r*0.5,0,Math.PI,0); ctx.fill();
+    ctx.globalAlpha=0.5; ctx.fillStyle='#9fb0cc'; ctx.fillRect(m.x-m.r,m.y+m.r*0.3,m.r*2,2); ctx.globalAlpha=1; }
   // snowfall
   ctx.fillStyle='#ffffff';
   for(const f of snowflakes){ f.y+=f.sp; f.x+=wind*0.5+Math.sin(tick*0.02+f.sw)*0.3; if(f.y>H){f.y=-4;f.x=Math.random()*W;} if(f.x<0)f.x+=W; if(f.x>W)f.x-=W;
@@ -463,6 +454,28 @@ function drawPine(tr){ const x=tr.x, gy=tr.gy, h=tr.h*(tr.scale||1), w=h*0.46;
     ctx.fillStyle='#cdddf2'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(tw*0.28,ty-th*0.72); ctx.lineTo(-tw*0.12,ty-th*0.62); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
+function drawSnowPile(p){ const x=p.x, gy=groundY(x), r=p.r;
+  const ratio=Math.max(0.15,Math.min(1,snowDepth[sidx(x)]/0.9));   // shrinks as it gets used up
+  const h=r*0.55*ratio;
+  // glow halo (clearly visible refill marker)
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  const g=ctx.createRadialGradient(x,gy-h*0.4,2,x,gy-h*0.4,r*1.4);
+  g.addColorStop(0,'rgba(160,215,255,'+(0.22*ratio+0.06).toFixed(3)+')'); g.addColorStop(1,'rgba(160,215,255,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,gy-h*0.4,r*1.4,0,7); ctx.fill(); ctx.restore();
+  // bright fresh-snow drift
+  ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.ellipse(x,gy,r,h,0,Math.PI,0); ctx.fill();
+  ctx.fillStyle='#eaf4ff'; ctx.beginPath(); ctx.ellipse(x+r*0.22,gy,r*0.6,h*0.72,0,Math.PI,0); ctx.fill();
+  // sparkles
+  ctx.fillStyle='#ffffff';
+  for(let s=0;s<4;s++){ const a=tick*0.04+s*1.7, sx=x+Math.cos(a)*r*0.55, sy=gy-h*0.5-Math.abs(Math.sin(a))*h*0.5;
+    ctx.globalAlpha=0.35+0.5*Math.sin(tick*0.1+s*2); ctx.fillRect(sx,sy,1.6,1.6); } ctx.globalAlpha=1;
+  // floating down-pointer marker so it's unmistakably a reload spot
+  const my=gy-h-16-2.5*Math.sin(tick*0.09);
+  ctx.globalAlpha=0.5+0.4*Math.sin(tick*0.09);
+  ctx.fillStyle='#bfe4ff'; ctx.beginPath(); ctx.moveTo(x,my+6); ctx.lineTo(x+5,my-3); ctx.lineTo(x-5,my-3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#eaf6ff'; ctx.beginPath(); ctx.arc(x,my-5,2.4,0,7); ctx.fill();
+  ctx.globalAlpha=1;
+}
 function drawPlayer(p){
   const top=p.side===0, c=top?'#5fd0ff':'#ff7a8e', cd=top?'#2492cf':'#e0506a', cl=top?'#d6f3ff':'#ffd9e0';
   ctx.save(); ctx.translate(p.x,p.y);
@@ -526,7 +539,7 @@ function drawReloadHint(){ const me=P[0]; if(!me||me.balls>0)return; ctx.textAli
   ctx.globalAlpha=0.55+0.45*Math.sin(tick*0.12);
   if(canPackAt(me.x)){ ctx.fillStyle='#9dff6b'; ctx.font='700 11px "Exo 2",sans-serif'; ctx.fillText('PACKで補充',me.x,me.y-42); }
   else { const sx=nearestSnowX(me.x); if(sx!=null){ const dir=sx<me.x?-1:1;
-    ctx.save(); ctx.translate(me.x,me.y-44); ctx.fillStyle='#cfe2ff'; ctx.font='700 10px "Exo 2",sans-serif'; ctx.fillText('雪へ',0,-4);
+    ctx.save(); ctx.translate(me.x,me.y-44); ctx.fillStyle='#cfe2ff'; ctx.font='700 10px "Exo 2",sans-serif'; ctx.fillText('雪だまりへ',0,-4);
     ctx.strokeStyle='#cfe2ff'; ctx.lineWidth=2.5; ctx.lineCap='round';
     ctx.beginPath(); ctx.moveTo(-dir*9,4); ctx.lineTo(dir*9,4); ctx.lineTo(dir*3,-1); ctx.moveTo(dir*9,4); ctx.lineTo(dir*3,9); ctx.stroke(); ctx.restore(); } }
   ctx.globalAlpha=1;
@@ -553,7 +566,7 @@ function drawPackBtn(){ const me=P[0]; if(!me)return; const need=me.balls<MAXBAL
   ctx.globalAlpha=active?0.5+pulse*0.4:0.3; ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y,R,0,7); ctx.stroke();
   ctx.globalAlpha=1; ctx.fillStyle=onSnow?'#ffffff':'#8fa4c0'; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y-3,R*0.28,0,7); ctx.fill();
   ctx.fillStyle=col; ctx.font='700 11px Orbitron,sans-serif'; ctx.textAlign='center'; ctx.fillText('PACK',packBtn.x,packBtn.y+R*0.55);
-  if(!onSnow){ ctx.fillStyle='#9fb4d0'; ctx.font='700 8px "Exo 2",sans-serif'; ctx.fillText('雪の上で',packBtn.x,packBtn.y+R*0.92); }
+  if(!onSnow){ ctx.fillStyle='#9fb4d0'; ctx.font='700 8px "Exo 2",sans-serif'; ctx.fillText('雪だまりで',packBtn.x,packBtn.y+R*0.92); }
   // pack progress ring
   if(me.packAcc>0){ ctx.strokeStyle='#9dff6b'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y,R-4,-Math.PI/2,-Math.PI/2+7*(me.packAcc/PACK_FRAMES)); ctx.stroke(); }
 }
