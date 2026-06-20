@@ -8,6 +8,28 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<!-- PWA / install to home screen -->
+<link rel="manifest" href="snowball.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="雪合戦">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="雪合戦オンライン">
+<meta property="og:title" content="雪合戦オンライン — リアルタイム雪合戦バトル">
+<meta property="og:description" content="左右ツインパッドで動いて投げる、ブラウザで今すぐ遊べるリアルタイム雪合戦。雪だまりで補充、雪山に隠れて避けて、相手にぶつけろ。スマホ対応・無料。">
+<meta property="og:url" content="https://tmk4men.github.io/metal-burst/snowball.html">
+<meta property="og:image" content="https://tmk4men.github.io/metal-burst/snowball-og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="雪合戦オンライン — リアルタイム雪合戦バトル">
+<meta name="twitter:description" content="ブラウザで今すぐ遊べるリアルタイム雪合戦。雪だまりで補充、隠れて避けて、相手にぶつけろ。スマホ対応・無料。">
+<meta name="twitter:image" content="https://tmk4men.github.io/metal-burst/snowball-og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@400;600;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
@@ -215,7 +237,7 @@ function layoutUI(){ packBtn.r=Math.max(34,Math.min(W,H)*0.072); packBtn.x=W/2; 
 function toWorld(e){ const r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height) }; }
 function inPack(p){ return Math.hypot(p.x-packBtn.x,p.y-packBtn.y)<=packBtn.r; }
 
-function onDown(e){ if(!playing)return; const p=toWorld(e);
+function onDown(e){ if(!playing||introT>0)return; const p=toWorld(e);
   if(inPack(p) && !packBtn.held){ packBtn.held=true; packBtn.id=e.pointerId; e.preventDefault(); return; }
   const which = p.x < W/2 ? 'move' : 'aim'; const pd=pad[which];
   if(pd.active) return;
@@ -310,12 +332,12 @@ function drawItems(){ for(const it of items){ const yy=it.y+Math.sin(it.bob)*3;
   ctx.save(); ctx.globalCompositeOperation='lighter';
   const g=ctx.createRadialGradient(it.x,yy,1,it.x,yy,20); g.addColorStop(0,it.col+'aa'); g.addColorStop(1,it.col+'00');
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(it.x,yy,20,0,7); ctx.fill(); ctx.restore();
-  ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(it.x,yy,8,0,7); ctx.fill();
-  ctx.lineWidth=2.5; ctx.strokeStyle=it.col; ctx.beginPath(); ctx.arc(it.x,yy,9.5,0,7); ctx.stroke();
+  ctx.lineWidth=2; ctx.strokeStyle='#0b1830'; ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(it.x,yy,10,0,7); ctx.fill(); ctx.stroke();
+  ctx.lineWidth=3; ctx.strokeStyle=it.col; ctx.beginPath(); ctx.arc(it.x,yy,11.5,0,7); ctx.stroke();
   ctx.fillStyle=it.col;
-  if(it.id==='big'){ ctx.beginPath(); ctx.arc(it.x,yy,3.6,0,7); ctx.fill(); }
-  else if(it.id==='rapid'){ for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.arc(it.x+k*3.4,yy,1.5,0,7); ctx.fill(); } }
-  else { ctx.beginPath(); ctx.moveTo(it.x,yy-4); ctx.lineTo(it.x+4,yy); ctx.lineTo(it.x,yy+4); ctx.lineTo(it.x-4,yy); ctx.closePath(); ctx.fill(); }
+  if(it.id==='big'){ ctx.beginPath(); ctx.arc(it.x,yy,5,0,7); ctx.fill(); }
+  else if(it.id==='rapid'){ for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.arc(it.x+k*4,yy,2,0,7); ctx.fill(); } }
+  else { ctx.beginPath(); ctx.moveTo(it.x,yy-5.5); ctx.lineTo(it.x+5.5,yy); ctx.lineTo(it.x,yy+5.5); ctx.lineTo(it.x-5.5,yy); ctx.closePath(); ctx.fill(); }
 }}
 function pushFloater(x,y,text,col){ floaters.push({x,y,vy:-0.9,life:1,text,col}); }
 function stepFloaters(){ for(let i=floaters.length-1;i>=0;i--){ const f=floaters[i]; f.y+=f.vy; f.vy*=0.95; f.life-=0.016; if(f.life<=0)floaters.splice(i,1); } }
@@ -616,10 +638,10 @@ function drawBanner(){ uctx.save(); uctx.globalAlpha=Math.min(1,bannerT/16); uct
 }
 function drawBuffBadge(p){ if(!p)return; let id=null,t=0;
   if(p.bigT>0){id='big';t=p.bigT;} else if(p.rapidT>0){id='rapid';t=p.rapidT;} else if(p.freezeT>0){id='freeze';t=p.freezeT;}
-  if(!id)return; const it=ITEMS.find(x=>x.id===id), x=p.x, y=p.y-42;
-  uctx.fillStyle='rgba(6,12,24,.65)'; uctx.beginPath(); uctx.arc(x,y,11,0,7); uctx.fill();
-  uctx.strokeStyle=it.col; uctx.lineWidth=2.5; uctx.beginPath(); uctx.arc(x,y,11,-Math.PI/2,-Math.PI/2+7*(t/BUFF_T)); uctx.stroke();
-  uctx.fillStyle=it.col; uctx.font='800 9px "Exo 2",sans-serif'; uctx.textAlign='center'; uctx.textBaseline='middle'; uctx.fillText(it.name,x,y+0.5); uctx.textBaseline='alphabetic';
+  if(!id)return; const it=ITEMS.find(x=>x.id===id), x=p.x, y=Math.max(p.y-44, 100);
+  uctx.fillStyle='rgba(6,12,24,.7)'; uctx.beginPath(); uctx.arc(x,y,13,0,7); uctx.fill();
+  uctx.strokeStyle=it.col; uctx.lineWidth=3; uctx.beginPath(); uctx.arc(x,y,13,-Math.PI/2,-Math.PI/2+7*(t/BUFF_T)); uctx.stroke();
+  uctx.fillStyle=it.col; uctx.font='800 11px "Exo 2",sans-serif'; uctx.textAlign='center'; uctx.textBaseline='middle'; uctx.fillText(it.name,x,y+0.5); uctx.textBaseline='alphabetic';
 }
 
 function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=aimVec();
@@ -682,33 +704,33 @@ function drawHUD(){
   drawMatchInfo();
 }
 function drawMatchInfo(){ uctx.textAlign='center'; uctx.textBaseline='top';
-  uctx.font='800 12px Orbitron,sans-serif'; uctx.fillStyle='rgba(220,235,255,.92)';
-  uctx.shadowColor='rgba(2,8,18,.7)'; uctx.shadowBlur=4;
-  uctx.fillText('STAGE '+stage+' ・ '+theme.name, W/2, 11); uctx.shadowBlur=0;
-  const y=30, r=5;
-  for(let i=0;i<ROUNDS_TO_WIN;i++){ uctx.beginPath(); uctx.arc(W/2-16-i*14,y,r,0,7); uctx.fillStyle=i<roundWins[0]?'#5fd0ff':'rgba(255,255,255,.18)'; uctx.fill(); }
-  for(let i=0;i<ROUNDS_TO_WIN;i++){ uctx.beginPath(); uctx.arc(W/2+16+i*14,y,r,0,7); uctx.fillStyle=i<roundWins[1]?'#ff7a8e':'rgba(255,255,255,.18)'; uctx.fill(); }
+  uctx.font='800 16px Orbitron,sans-serif'; uctx.fillStyle='rgba(226,240,255,.95)';
+  uctx.shadowColor='rgba(2,8,18,.75)'; uctx.shadowBlur=4;
+  uctx.fillText('STAGE '+stage+' ・ '+theme.name, W/2, 12); uctx.shadowBlur=0;
+  const y=38, r=6.5;
+  for(let i=0;i<ROUNDS_TO_WIN;i++){ uctx.beginPath(); uctx.arc(W/2-20-i*18,y,r,0,7); uctx.fillStyle=i<roundWins[0]?'#5fd0ff':'rgba(255,255,255,.2)'; uctx.fill(); }
+  for(let i=0;i<ROUNDS_TO_WIN;i++){ uctx.beginPath(); uctx.arc(W/2+20+i*18,y,r,0,7); uctx.fillStyle=i<roundWins[1]?'#ff7a8e':'rgba(255,255,255,.2)'; uctx.fill(); }
   uctx.textBaseline='alphabetic';
 }
 function hudPanel(ax,y,right,hp,ammo,col,label){
-  const hR=8, hGap=7, bR=6, bGap=5, padX=15, padY=10, labelH=18, rowGap=9, ammoLabelW=30;
+  const hR=10, hGap=8, bR=8, bGap=6, padX=16, padY=11, labelH=20, rowGap=10, ammoLabelW=36;
   const heartsW=WIN_HITS*(hR*2)+(WIN_HITS-1)*hGap;
   const ammoW=ammoLabelW + MAXBALL*(bR*2)+(MAXBALL-1)*bGap;
-  uctx.font='800 15px Orbitron,sans-serif'; const lw=uctx.measureText(label).width;
+  uctx.font='800 17px Orbitron,sans-serif'; const lw=uctx.measureText(label).width;
   const w=Math.max(heartsW, ammoW, lw)+padX*2;
   const h=padY*2+labelH+(hR*2)+rowGap+(bR*2)+4;
   const x = right? ax-w : ax;
   uctx.fillStyle='rgba(9,16,30,.62)'; rrect(uctx,x,y,w,h,14); uctx.fill();
   uctx.lineWidth=1.5; uctx.strokeStyle=col+'5e'; rrect(uctx,x,y,w,h,14); uctx.stroke();
   uctx.fillStyle=col; rrect(uctx, right? x+w-4 : x, y+9, 4, h-18, 2); uctx.fill();   // accent edge
-  uctx.textBaseline='top'; uctx.font='800 15px Orbitron,sans-serif'; uctx.fillStyle=col; uctx.textAlign=right?'right':'left';
+  uctx.textBaseline='top'; uctx.font='800 17px Orbitron,sans-serif'; uctx.fillStyle=col; uctx.textAlign=right?'right':'left';
   uctx.fillText(label, right? x+w-padX : x+padX, y+padY);
   // HP hearts
   const hy=y+padY+labelH+hR;
   for(let i=0;i<WIN_HITS;i++){ const cx=x+padX+hR+i*(hR*2+hGap); drawHeart(cx,hy,hR, i<hp); }
   // snowball ammo
   const by=hy+hR+rowGap+bR;
-  uctx.font='700 10px "Exo 2",sans-serif'; uctx.fillStyle='rgba(208,224,246,.7)'; uctx.textBaseline='middle'; uctx.textAlign='left';
+  uctx.font='700 12px "Exo 2",sans-serif'; uctx.fillStyle='rgba(208,224,246,.75)'; uctx.textBaseline='middle'; uctx.textAlign='left';
   uctx.fillText('雪玉', x+padX, by);
   for(let i=0;i<MAXBALL;i++){ const cx=x+padX+ammoLabelW+bR+i*(bR*2+bGap); drawPip(cx,by,bR, i<ammo, '#bcd6f5'); }
   uctx.textBaseline='alphabetic';

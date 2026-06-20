@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1830"/><stop offset="0.55" stop-color="#13243f"/><stop offset="1" stop-color="#21406a"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="0.38" cy="0.32" r="0.85">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.7" stop-color="#eaf2ff"/><stop offset="1" stop-color="#c3d6ef"/>
+    </radialGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e7f0ff"/><stop offset="1" stop-color="#bcd0ea"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <!-- aurora -->
+  <g>
+    <path d="M0 120 Q300 70 600 120 T1200 120 L1200 220 Q600 180 0 220 Z" fill="#7affc8" opacity="0.18"/>
+    <path d="M0 175 Q300 130 600 175 T1200 175 L1200 285 Q600 250 0 285 Z" fill="#82c8ff" opacity="0.16"/>
+  </g>
+  <!-- moon -->
+  <circle cx="1010" cy="120" r="64" fill="#eef5ff"/>
+  <circle cx="985" cy="100" r="30" fill="#cdd9ee" opacity="0.55"/>
+  <!-- distant hills -->
+  <path d="M0 360 Q200 300 420 350 T900 330 T1200 350 L1200 460 L0 460 Z" fill="#274a72" opacity="0.8"/>
+  <!-- snow ground -->
+  <path d="M0 430 Q600 392 1200 430 L1200 630 L0 630 Z" fill="url(#ground)"/>
+  <!-- snow piles -->
+  <ellipse cx="250" cy="486" rx="70" ry="26" fill="#ffffff"/>
+  <ellipse cx="950" cy="486" rx="70" ry="26" fill="#ffffff"/>
+  <!-- left stick figure (throwing) -->
+  <g stroke="#5fd0ff" stroke-width="9" stroke-linecap="round" fill="none">
+    <circle cx="250" cy="396" r="17" fill="#5fd0ff" stroke="none"/>
+    <line x1="250" y1="413" x2="250" y2="455"/>
+    <line x1="250" y1="455" x2="236" y2="486"/><line x1="250" y1="455" x2="264" y2="486"/>
+    <line x1="250" y1="423" x2="232" y2="432"/>
+    <line x1="250" y1="423" x2="278" y2="408"/>
+  </g>
+  <!-- right stick figure -->
+  <g stroke="#ff7a8e" stroke-width="9" stroke-linecap="round" fill="none">
+    <circle cx="950" cy="396" r="17" fill="#ff7a8e" stroke="none"/>
+    <line x1="950" y1="413" x2="950" y2="455"/>
+    <line x1="950" y1="455" x2="936" y2="486"/><line x1="950" y1="455" x2="964" y2="486"/>
+    <line x1="950" y1="423" x2="968" y2="432"/>
+    <line x1="950" y1="423" x2="922" y2="408"/>
+  </g>
+  <!-- flying snowball + arc -->
+  <path d="M300 392 Q600 250 900 392" fill="none" stroke="#bcd6f5" stroke-width="6" stroke-dasharray="3 20" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="600" cy="300" r="20" fill="url(#ball)"/>
+  <circle cx="592" cy="292" r="7" fill="#ffffff" opacity="0.6"/>
+  <!-- snow specks -->
+  <g fill="#ffffff" opacity="0.85">
+    <circle cx="120" cy="160" r="5"/><circle cx="420" cy="120" r="4"/><circle cx="760" cy="200" r="5"/><circle cx="180" cy="300" r="4"/><circle cx="1080" cy="320" r="4"/><circle cx="520" cy="430" r="4"/>
+  </g>
+  <!-- title -->
+  <text x="600" y="248" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Hiragino Kaku Gothic ProN, sans-serif" font-weight="900" font-size="132" fill="#ffffff" stroke="#0a1426" stroke-width="3" paint-order="stroke">雪合戦<tspan fill="#5fd0ff">オンライン</tspan></text>
+  <text x="600" y="320" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, sans-serif" font-weight="700" font-size="34" fill="#cfe2ff">リアルタイム雪合戦バトル ／ ブラウザで今すぐ・無料</text>
+</svg>
