@@ -125,8 +125,9 @@ window.addEventListener('resize',()=>{ fitCanvas(); buildWorld(); layoutUI(); ch
   for(const r of P){ r.x=Math.max(18,Math.min(r.x,W-18)); r.y=groundY(r.x)-FOOT; r.vx=r.vy=0; r.grounded=true; } });
 
 /* ---------- constants ---------- */
-const GRAV=0.34;          // body gravity (jump/fall) — unchanged so movement feel stays
-const BALL_GRAV=0.24;     // snowball gravity — lower = floatier/slower arc
+const GRAV=0.42;          // body gravity (jump/fall) — heavier = more grounded
+const BALL_GRAV=0.24;     // snowball gravity — separate so snowballs stay floaty/slow
+const JUMP_V=-7.4;        // jump impulse (lower = heavier, less floaty)
 const MAXBALL=3;          // snowballs carried
 const WIN_HITS=3;         // HP per round (hits to KO)
 const ROUNDS_TO_WIN=2;    // best-of-3 match
@@ -382,10 +383,11 @@ function controlHuman(){ const me=P[0]; if(!me||over)return;
 }
 function applyMove(p,mvx,jump,charging){
   if(p.stun>0){ p.stun--; mvx=0; jump=false; }
-  const spd = charging?1.4:2.3;             // walking pace (slower); even slower while winding up a throw
-  p.vx += mvx*spd*0.5; p.vx*=0.78;
+  const maxs = charging?1.9:3.4;            // top walking speed (slower); even slower while winding up
+  p.vx += (mvx*maxs - p.vx)*0.13;           // ease toward target -> weighty start/stop inertia
+  if(Math.abs(p.vx)<0.03)p.vx=0;
   if(Math.abs(mvx)>0.05)p.face=mvx>0?1:-1;
-  if(jump && p.grounded){ p.vy=-8.2; p.grounded=false; }
+  if(jump && p.grounded){ p.vy=JUMP_V; p.grounded=false; }
   p.vy+=GRAV; p.x+=p.vx; p.y+=p.vy;
   p.x=Math.max(18,Math.min(W-18,p.x));
   const gy=groundY(p.x)-FOOT;
