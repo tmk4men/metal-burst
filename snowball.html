@@ -113,7 +113,7 @@ let snowDepth=new Float32Array(2);         // 0..1 packable snow at each sample 
 let snowMax=new Float32Array(2);           // regrow target per sample
 let mounds=[];       // cover: {x,y,r,hp,max}
 let snowflakes=[];   // bg particles
-let bgHills=[], trees=[];
+let bgHills=[], trees=[], cabins=[], townLights=[];
 let wind=0;
 
 function groundY(x){ const i=Math.max(0,Math.min(ground.length-1,x/GSTEP)); const i0=i|0, f=i-i0;
@@ -146,6 +146,9 @@ function buildWorld(){
     bgHills.push({pts,step,y:off,shade:layer}); }
   // snowy pines (background decoration, non-colliding)
   trees=[]; for(let t=0;t<7;t++){ const x=W*(0.08+t*0.13)+ (t%2?20:-20); const h=46+(t%3)*16; trees.push({x,gy:groundY(x),h,scale:0.8+(t%3)*0.18}); }
+  // distant village on the far hillside: cabins + flickering town lights
+  cabins=[]; [0.13,0.21,0.61,0.69].forEach((fx,i)=>{ const w=13+(i%2)*7; cabins.push({x:W*fx,y:H*0.625,w,h:w*0.85}); });
+  townLights=[]; for(let i=0;i<26;i++) townLights.push({x:W*(0.07+Math.random()*0.8), y:H*(0.47+Math.random()*0.15), tw:Math.random()*7});
   // snowfall
   snowflakes=[]; for(let i=0;i<90;i++) snowflakes.push({x:Math.random()*W,y:Math.random()*H,r:0.6+Math.random()*1.8,sp:0.4+Math.random()*1.1,sw:Math.random()*7});
 }
@@ -332,6 +335,7 @@ function draw(){
   // sky
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0b1830'); g.addColorStop(.5,'#13243f'); g.addColorStop(1,'#1b3354');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  drawAurora();
   // moon
   const mx=W*0.8,myy=H*0.22,mr=Math.min(W,H)*0.07;
   const halo=ctx.createRadialGradient(mx,myy,mr*0.5,mx,myy,mr*3); halo.addColorStop(0,'#cfe2ff33'); halo.addColorStop(1,'#0000');
@@ -339,14 +343,11 @@ function draw(){
   ctx.fillStyle='#eef5ff'; ctx.beginPath(); ctx.arc(mx,myy,mr,0,7); ctx.fill();
   ctx.fillStyle='#cdd9ee'; ctx.beginPath(); ctx.arc(mx-mr*0.3,myy-mr*0.2,mr*0.5,0,7); ctx.fill();
   ctx.fillStyle='#0b1830'; ctx.beginPath(); ctx.arc(mx-mr*0.55,myy-mr*0.35,mr*0.9,0,7); ctx.fill();
-  // bg hills
-  const shades=['#1d3556','#24406a','#2b4d80'];
-  bgHills.forEach((h,i)=>{ ctx.fillStyle=shades[i]; ctx.beginPath(); ctx.moveTo(0,H); let x=0;
-    for(const py of h.pts){ ctx.lineTo(x,py); x+=h.step; } ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
-    // snow caps
-    ctx.fillStyle='#cfe0f5'; x=0; ctx.globalAlpha=0.5+i*0.15; ctx.beginPath(); ctx.moveTo(0,h.pts[0]);
-    let xx=0; for(const py of h.pts){ ctx.lineTo(xx,py); xx+=h.step; } ctx.lineTo(W,h.pts[h.pts.length-1]+5);
-    xx=W; for(let k=h.pts.length-1;k>=0;k--){ ctx.lineTo(xx,h.pts[k]+5); xx-=h.step; } ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; });
+  // bg hills (back->front) with depth, distant village nestled between ridges
+  drawHill(bgHills[0],0); drawHill(bgHills[1],1); drawVillage(); drawHill(bgHills[2],2);
+  // horizon haze separates the ridges and makes the front one pop
+  const hz=ctx.createLinearGradient(0,H*0.46,0,H*0.66); hz.addColorStop(0,'#1a2b4a00'); hz.addColorStop(1,'#1a2b4a55');
+  ctx.fillStyle=hz; ctx.fillRect(0,H*0.46,W,H*0.22);
   // trees (behind ground line)
   for(const tr of trees) drawPine(tr);
   // ground (snow field base)
@@ -361,6 +362,12 @@ function draw(){
   ctx.fillStyle='#ffffff';
   for(let i=2;i<ground.length-2;i+=5){ if(snowDepth[i]>0.6 && (i*7+tick*0)%13<2){ const x=i*GSTEP; ctx.globalAlpha=.4+.4*Math.sin(tick*0.08+i); ctx.fillRect(x,ground[i]-6,1.4,1.4); } }
   ctx.globalAlpha=1;
+  // snow glow: deep-snow ground softly emits light upward
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for(let i=0;i<ground.length-1;i+=2){ const d=snowDepth[i]; if(d<=0.3)continue; const x=i*GSTEP, y=ground[i], gh=9+d*11;
+    const sg=ctx.createLinearGradient(0,y-gh,0,y); sg.addColorStop(0,'rgba(190,226,255,0)'); sg.addColorStop(1,'rgba(198,228,255,'+(0.045+d*0.05).toFixed(3)+')');
+    ctx.fillStyle=sg; ctx.fillRect(x-1,y-gh,GSTEP*2+2,gh); }
+  ctx.restore();
   // mounds (cover)
   for(const m of mounds){ ctx.fillStyle='#f4f9ff'; ctx.beginPath(); ctx.ellipse(m.x,m.y+m.r*0.35,m.r,m.r*0.8,0,Math.PI,0); ctx.fill();
     ctx.fillStyle='#d4e3f6'; ctx.beginPath(); ctx.ellipse(m.x+m.r*0.3,m.y+m.r*0.4,m.r*0.6,m.r*0.5,0,Math.PI,0); ctx.fill();
@@ -387,12 +394,52 @@ function draw(){
   drawHUD();
 }
 
-function drawPine(tr){ const x=tr.x, gy=tr.gy, h=tr.h, w=h*0.46;
+/* ---------- aurora ---------- */
+function drawAurora(){ ctx.save(); ctx.globalCompositeOperation='lighter';
+  const bands=[{c:'120,255,190',base:H*0.12,amp:20,h:H*0.22,k:0.0045,sp:0.010,ph:0.0,a:0.10},
+               {c:'130,200,255',base:H*0.18,amp:28,h:H*0.28,k:0.0060,sp:0.007,ph:2.2,a:0.085}];
+  for(const b of bands){
+    const top=x=> b.base + Math.sin(x*b.k+tick*b.sp+b.ph)*b.amp + Math.sin(x*b.k*2.4+tick*b.sp*1.7)*b.amp*0.35;
+    ctx.beginPath(); ctx.moveTo(0,top(0)); for(let x=0;x<=W;x+=22) ctx.lineTo(x,top(x));
+    for(let x=W;x>=0;x-=22) ctx.lineTo(x,top(x)+b.h); ctx.closePath();
+    const g=ctx.createLinearGradient(0,b.base-b.amp,0,b.base+b.h);
+    g.addColorStop(0,'rgba('+b.c+',0)'); g.addColorStop(0.4,'rgba('+b.c+','+b.a+')'); g.addColorStop(1,'rgba('+b.c+',0)');
+    ctx.fillStyle=g; ctx.fill();
+    // shimmering vertical streaks
+    for(let x=18;x<W;x+=44){ const ty=top(x); ctx.strokeStyle='rgba('+b.c+','+(b.a*0.7)+')'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,ty); ctx.lineTo(x+Math.sin(tick*0.012+x)*4,ty+b.h*0.7); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+/* ---------- hills / village ---------- */
+function drawHill(h,i){ const hcol=[['#16294a','#1d3354'],['#1e3a5e','#274a72'],['#274d78','#356290']];
+  const minY=Math.min.apply(null,h.pts);
+  const g=ctx.createLinearGradient(0,minY,0,H); g.addColorStop(0,hcol[i][1]); g.addColorStop(1,hcol[i][0]);
+  ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(0,H); let x=0; for(const py of h.pts){ ctx.lineTo(x,py); x+=h.step; } ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  // snow cap / rim light along ridge
+  ctx.fillStyle='#dbe8fb'; ctx.globalAlpha=0.4+i*0.2; ctx.beginPath(); x=0; ctx.moveTo(0,h.pts[0]);
+  for(const py of h.pts){ ctx.lineTo(x,py); x+=h.step; }
+  let xx=W; for(let k=h.pts.length-1;k>=0;k--){ ctx.lineTo(xx,h.pts[k]+5+i*2); xx-=h.step; } ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+}
+function drawVillage(){
+  for(const c of cabins){ ctx.fillStyle='#27324c'; ctx.fillRect(c.x-c.w/2,c.y-c.h,c.w,c.h);
+    ctx.fillStyle='#1c2740'; ctx.fillRect(c.x,c.y-c.h,c.w/2,c.h);                 // shaded side
+    ctx.fillStyle='#e6f0ff'; ctx.beginPath(); ctx.moveTo(c.x-c.w/2-2,c.y-c.h); ctx.lineTo(c.x,c.y-c.h-c.h*0.7); ctx.lineTo(c.x+c.w/2+2,c.y-c.h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#ffd98a'; ctx.shadowColor='#ffcf6e'; ctx.shadowBlur=6; const ww=Math.max(2,c.w*0.28);
+    ctx.fillRect(c.x-ww/2,c.y-c.h*0.62,ww,ww); ctx.shadowBlur=0; }
+  for(const t of townLights){ ctx.globalAlpha=0.35+0.5*Math.sin(tick*0.06+t.tw); ctx.fillStyle='#ffd98a';
+    ctx.shadowColor='#ffcf6e'; ctx.shadowBlur=4; ctx.fillRect(t.x,t.y,1.6,1.6); }
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+}
+function drawPine(tr){ const x=tr.x, gy=tr.gy, h=tr.h*(tr.scale||1), w=h*0.46;
   ctx.save(); ctx.translate(x,gy);
-  ctx.fillStyle='#6b4a32'; ctx.fillRect(-2,-8,4,9);
+  // trunk
+  ctx.fillStyle='#5b3f2b'; ctx.fillRect(-2,-8,4,9); ctx.fillStyle='#74543a'; ctx.fillRect(-2,-8,1.6,9);
   for(let k=0;k<3;k++){ const ty=-8-k*h*0.28, tw=w*(1-k*0.24), th=h*0.4;
-    ctx.fillStyle='#23492f'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(tw,ty); ctx.lineTo(-tw,ty); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#eef6ff'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(tw*0.5,ty-th*0.5); ctx.lineTo(-tw*0.5,ty-th*0.5); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle='#1c3d27'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(tw,ty); ctx.lineTo(-tw,ty); ctx.closePath(); ctx.fill();   // shaded base
+    ctx.fillStyle='#2f5a3a'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(0,ty); ctx.lineTo(-tw,ty); ctx.closePath(); ctx.fill();    // lit (left) side
+    ctx.fillStyle='#eef6ff'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(tw*0.55,ty-th*0.45); ctx.lineTo(-tw*0.55,ty-th*0.45); ctx.closePath(); ctx.fill(); // snow
+    ctx.fillStyle='#cdddf2'; ctx.beginPath(); ctx.moveTo(0,ty-th); ctx.lineTo(tw*0.28,ty-th*0.72); ctx.lineTo(-tw*0.12,ty-th*0.62); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
 function drawPlayer(p){
