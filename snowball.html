@@ -40,7 +40,7 @@
   .orb{ font-family:"Orbitron",sans-serif; }
   #stage{ position:fixed; inset:0; }
   #stage canvas{ position:absolute; inset:0; width:100%; height:100%; }
-  canvas#cv{ z-index:1; touch-action:none; background:#0c1830; image-rendering:pixelated; image-rendering:crisp-edges; }
+  canvas#cv{ z-index:1; touch-action:none; background:#0c1830; }
   canvas#ui{ z-index:3; pointer-events:none; }   /* crisp full-res layer for HUD / text / controls — above the vignette */
   #stage::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
     background:radial-gradient(130% 130% at 50% 40%, #0000 56%, #00000055 100%); }
@@ -56,7 +56,11 @@
   /* overlay (home / result) */
   #overlay{ position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center; text-align:center;
     overflow:auto; padding:16px;
-    background:radial-gradient(120% 120% at 50% 30%, #112b4a 0%, #081223 60%, #060b16 100%); }
+    background:radial-gradient(125% 125% at 50% 32%, rgba(12,24,46,.30) 0%, rgba(7,13,26,.6) 56%, rgba(4,8,16,.82) 100%);
+    -webkit-backdrop-filter:blur(1.5px); backdrop-filter:blur(1.5px); }
+  #overlay::after{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.4;
+    background:repeating-linear-gradient(0deg,#0000 0 2px,#0000000f 2px 3px); }
+  #overlay .inner{ position:relative; z-index:1; }
   #overlay.hide{ display:none; }
   .inner{ display:flex; flex-direction:column; align-items:center; gap:18px; padding:24px; margin:auto; max-width:560px; }
   #logo{ font-family:"Noto Sans JP",sans-serif; font-weight:900; font-size:clamp(40px,10vw,82px); letter-spacing:6px; color:var(--tx);
@@ -76,6 +80,30 @@
     padding:14px 26px; border-radius:12px; background:rgba(18,32,56,.6); border:1px solid #2c405e; box-shadow:inset 0 1px 0 #ffffff14; transition:transform .06s; }
   .ghost:active{ transform:translateY(2px); }
   .credit{ font-size:11px; color:#6f86a8; letter-spacing:.5px; }
+  /* coins + shop */
+  .coinbar{ display:inline-flex; align-items:center; gap:7px; font-family:"Orbitron"; font-weight:700; font-size:17px; color:#ffd45e;
+    text-shadow:0 1px 3px #000a, 0 0 10px #00000066; }
+  .coinbar svg{ width:19px; height:19px; flex:none; }
+  #shop{ display:none; width:min(440px,92vw); text-align:left; }
+  .inner.shopping > :not(#shop){ display:none !important; }
+  .inner.shopping #shop{ display:block; }
+  .shoptop{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .shoptitle{ font-size:24px; letter-spacing:4px; color:#eaf3ff; }
+  .shoprow{ display:flex; align-items:center; gap:12px; padding:11px 12px; margin-bottom:10px; border-radius:13px;
+    background:linear-gradient(180deg,rgba(20,32,56,.7),rgba(12,20,36,.7)); border:1px solid #2a3c5c; box-shadow:inset 0 1px 0 #ffffff10; }
+  .shoprow .ic{ width:46px; height:46px; flex:none; display:grid; place-items:center; border-radius:11px; background:rgba(95,208,255,.10); border:1px solid #2c405e; }
+  .shoprow .info{ flex:1; min-width:0; }
+  .shoprow .nm{ font-weight:700; color:#eaf3ff; font-size:15px; }
+  .shoprow .ds{ font-size:12px; color:#9fb4d0; margin-top:1px; }
+  .shoprow .lv{ display:flex; gap:3px; margin-top:5px; }
+  .shoprow .lv i{ width:15px; height:5px; border-radius:3px; background:#2a3c5c; }
+  .shoprow .lv i.on{ background:#5fd0ff; }
+  .shoprow .buy{ display:inline-flex; align-items:center; gap:5px; font-family:"Orbitron"; font-weight:700; font-size:14px; color:#04121f;
+    border:none; border-radius:11px; padding:10px 13px; background:linear-gradient(180deg,#ffd86a,#f0ad34); cursor:pointer; white-space:nowrap; }
+  .shoprow .buy svg{ width:15px; height:15px; }
+  .shoprow .buy:disabled{ filter:grayscale(.6); opacity:.5; cursor:default; }
+  .shoprow .buy.max{ background:#2a3c5c; color:#9fb4d0; }
+  #shopList{ max-height:54vh; overflow:auto; }
   /* responsive: short landscape phones */
   @media (max-height:480px){
     .inner{ gap:9px; padding:10px; }
@@ -86,6 +114,9 @@
     .ghost{ padding:11px 20px; font-size:13px; }
     .credit{ display:none; }
     #resTitle{ font-size:clamp(24px,7vh,40px); }
+    #shopList{ max-height:46vh; }
+    .shoprow{ padding:8px 10px; margin-bottom:7px; } .shoprow .ic{ width:38px; height:38px; }
+    .shoptitle{ font-size:20px; }
   }
 </style>
 </head>
@@ -100,11 +131,18 @@
     <div id="logo">雪<span class="b">合戦</span><span class="on">O N L I N E</span></div>
     <div id="resTitle" class="orb"></div>
     <div id="resSub"></div>
+    <div class="coinbar" id="coinbar"></div>
     <div class="btnrow">
       <button class="start orb" id="startBtn">はじめる</button>
+      <button class="ghost orb" id="shopBtn">ショップ</button>
       <button class="ghost orb" id="homeBtn" style="display:none">ホーム</button>
     </div>
     <div class="credit">プロトタイプ ／ 横画面・スマホ対応 ／ オリジナル作品</div>
+    <div id="shop">
+      <div class="shoptop"><div class="shoptitle orb">SHOP</div><div class="coinbar" id="shopCoins"></div></div>
+      <div id="shopList"></div>
+      <button class="ghost orb" id="shopBack">もどる</button>
+    </div>
   </div>
 </div>
 
@@ -115,9 +153,10 @@ let W=1280,H=720,VW=1280,VH=720,drawScale=1,uiScale=1,DPR=1; const ZOOM=1.5, PX=
 function fitCanvas(){
   VW=Math.max(320,Math.floor(window.innerWidth));
   VH=Math.max(320,Math.floor(window.innerHeight));
-  DPR=Math.min(window.devicePixelRatio||1, 2.5);
+  DPR=Math.min(window.devicePixelRatio||1, 2);
   W=Math.round(VW*ZOOM); H=Math.round(VH*ZOOM);
-  const pw=Math.max(180,Math.round(VW/PX)), ph=Math.max(140,Math.round(VH/PX));
+  const sres=Math.min(DPR,2);                                 // render the scene near device resolution (sharper)
+  const pw=Math.max(360,Math.round(VW*sres)), ph=Math.max(240,Math.round(VH*sres));
   cv.width=pw; cv.height=ph; drawScale=pw/W;
   uic.width=Math.round(VW*DPR); uic.height=Math.round(VH*DPR); uiScale=uic.width/W;   // world coords -> crisp device px
 }
@@ -135,11 +174,11 @@ const THROW_CD=14;        // frames between throws
 const PACK_FRAMES=26;     // frames to pack one snowball
 const CHARGE_MAX=46;      // frames to reach full charge
 const STUN_FRAMES=26;     // hit stun
-const JUMP_THRESH=0.55;   // fraction of pad radius for a jump flick
+const JUMP_THRESH=0.82;   // fraction of pad radius for a jump flick (high = fewer accidental jumps)
 const PADR=()=> Math.max(60, Math.min(W,H)*0.15);
 
 /* ---------- progression / rounds ---------- */
-let stage=1, round=1, roundWins=[0,0], introT=0, banner='', bannerT=0;
+let stage=1, round=1, roundWins=[0,0], introT=0, banner='', bannerT=0, advanceStage=false;
 /* ---------- field items (special snowballs) ---------- */
 const ITEMS=[ {id:'big',name:'大玉',col:'#ff9d5c'}, {id:'rapid',name:'連射',col:'#9dff6b'}, {id:'freeze',name:'凍結',col:'#7ad7ff'} ];
 const BUFF_T=360;         // buff duration (frames ~6s)
@@ -154,11 +193,46 @@ const THEMES=[
 ];
 let theme=THEMES[0];
 function applyTheme(s){ theme=THEMES[(s-1)%THEMES.length]; }
+/* ---------- map layouts (terrain deviation from base, snow piles, cover mounds) ---------- */
+const MAPS=[
+  {name:'PLAIN',  terr:(x,W)=>26*Math.sin(x*0.0042+1.1)+14*Math.sin(x*0.011+0.4)+8*Math.sin(x*0.02+2.0),
+   piles:[0.13,0.37,0.63,0.87], mounds:[[0.30,38],[0.5,46],[0.70,38]]},
+  {name:'HILLS',  terr:(x,W)=>62*Math.sin(x*0.0026+0.6)+16*Math.sin(x*0.013+1.2),
+   piles:[0.10,0.5,0.90], mounds:[[0.28,34],[0.72,34]]},
+  {name:'VALLEY', terr:(x,W)=>-58*Math.exp(-Math.pow((x/W-0.5)*4.6,2))+18*Math.sin(x*0.009+1),
+   piles:[0.12,0.5,0.88], mounds:[[0.5,52],[0.24,30],[0.76,30]]},
+  {name:'RIDGE',  terr:(x,W)=>58*Math.exp(-Math.pow((x/W-0.5)*4.6,2))+12*Math.sin(x*0.012+0.5),
+   piles:[0.1,0.33,0.67,0.9], mounds:[[0.5,42],[0.18,28],[0.82,28]]},
+  {name:'DUNES',  terr:(x,W)=>30*Math.sin(x*0.006+2)+22*Math.sin(x*0.014+0.5)+10*Math.sin(x*0.03+1),
+   piles:[0.15,0.4,0.6,0.85], mounds:[[0.25,36],[0.5,30],[0.75,36]]},
+];
+let curMap=MAPS[0];
 function aiParams(){ return {
   err: Math.max(0.012, 0.07 - stage*0.009),         // aim gets tighter with stage
   throwChance: Math.min(0.11, 0.035 + stage*0.012), // throws more often
   dodge: Math.min(0.85, 0.4 + stage*0.09),          // dodges more
   chargeBias: Math.min(38, 14 + stage*4) }; }        // charges harder
+
+/* ---------- shop / save (localStorage meta-progression) ---------- */
+const SAVE_KEY='snowclash_save_v1';
+const DEF_SAVE={ coins:0, up:{boots:0,glove:0,pouch:0} };
+let save=loadSave();
+function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s&&s.up) return Object.assign({},DEF_SAVE,s,{up:Object.assign({},DEF_SAVE.up,s.up)}); }catch(e){} return JSON.parse(JSON.stringify(DEF_SAVE)); }
+function persist(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(save)); }catch(e){} }
+function addCoins(n){ save.coins+=n; persist(); }
+const UP=[
+  {id:'boots', name:'スノーブーツ',     max:5, cost:l=>40+l*45,  desc:'移動速度がほんの少し上がる',
+   icon:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#7fe6ff" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8 4v9l-3 1.6A2 2 0 0 0 4 16.4V19h13a2 2 0 0 0 2-2c0-2-2-2.7-4-3.6-1.5-.7-2-1.4-2-2.9V4z"/><path d="M4 16.6h6"/></svg>'},
+  {id:'glove', name:'スピードグローブ', max:3, cost:l=>70+l*70,  desc:'雪玉の補充がはやくなる',
+   icon:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#9dff6b" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8 5h6a3 3 0 0 1 3 3v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9"/><path d="M4 9c0-1.7 1.3-3 3-3"/><path d="M7.5 17v2.5h7V17"/></svg>'},
+  {id:'pouch', name:'大容量ポーチ',     max:2, cost:l=>140+l*160, desc:'持てる雪玉が +1',
+   icon:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#ffd45e" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M7 8h10l1.4 9a2 2 0 0 1-2 2.3H7.6A2 2 0 0 1 5.6 17z"/><path d="M9 8a3 3 0 0 1 6 0"/><path d="M12 11.5v3.5M10.3 13.2h3.4"/></svg>'},
+];
+function playerUp(){ const u=save.up; return {
+  spdMul: 1 + (u.boots||0)*0.06,
+  packFrames: Math.max(10, Math.round(PACK_FRAMES*(1-(u.glove||0)*0.12))),
+  maxBalls: MAXBALL + (u.pouch||0) }; }
+let matchCoins=0;
 
 /* ---------- audio ---------- */
 let AC=null; const actx=()=>{ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return AC; };
@@ -197,19 +271,19 @@ function nearestSnowX(from){ let best=null,bd=1e9, any=null,ad=1e9;   // prefer 
   return best!=null?best:any; }
 
 function buildWorld(){
+  curMap = MAPS[(stage-1)%MAPS.length];
   const n=Math.ceil(W/GSTEP)+2; ground=new Float32Array(n);
   const base=H*0.58;   // battlefield floor raised so the bottom band is free for the control pads
-  for(let i=0;i<n;i++){ const x=i*GSTEP;
-    ground[i]=base - 26*Math.sin(x*0.0042+1.1) - 14*Math.sin(x*0.011+0.4) - 8*Math.sin(x*0.02+2.0); }
+  for(let i=0;i<n;i++){ const x=i*GSTEP; ground[i]=base - curMap.terr(x,W); }
   // reload ONLY at discrete, clearly-marked snow piles — the rest of the ground is packed (no reload)
   snowMax=new Float32Array(n); snowDepth=new Float32Array(n);
-  snowPiles=[]; [0.13,0.37,0.63,0.87].forEach(fx=>{ snowPiles.push({x:W*fx, r:Math.max(34,W*0.035)}); });
+  snowPiles=[]; curMap.piles.forEach(fx=>{ snowPiles.push({x:W*fx, r:Math.max(34,W*0.035)}); });
   for(const p of snowPiles){ const c=(p.x/GSTEP)|0, rad=Math.max(2,(p.r/GSTEP)|0);
     for(let k=-rad;k<=rad;k++){ const j=c+k; if(j>=0&&j<n){ const f=1-Math.abs(k)/rad; const v=0.85+0.15*f; if(v>snowMax[j]){ snowMax[j]=v; snowDepth[j]=v; } } } }
-  // cover mounds (snow forts) — a few between the players
+  // cover mounds (snow forts) — layout varies per map
   mounds=[];
   const my=(fx)=>groundY(W*fx);
-  [0.30,0.5,0.70].forEach((fx,k)=>{ const r=k===1?46:38; mounds.push({x:W*fx,y:my(fx)-r*0.35,r,hp:1,max:1}); });
+  curMap.mounds.forEach(([fx,r])=>{ mounds.push({x:W*fx,y:my(fx)-r*0.35,r,hp:1,max:1}); });
   // background snowy hills
   bgHills=[]; for(let layer=0;layer<3;layer++){ const pts=[],step=40,amp=40+layer*26,off=H*(0.40+layer*0.05);
     for(let x=0;x<=W+step;x+=step) pts.push(off - amp*(0.5+0.5*Math.sin(x*0.003*(1+layer*0.4)+layer*2)));
@@ -225,7 +299,9 @@ function buildWorld(){
 
 /* ---------- entities ---------- */
 function makePlayer(side){ const x=side===0?W*0.14:W*0.86;
-  return {side,x,y:groundY(x)-FOOT,vx:0,vy:0,grounded:true,balls:MAXBALL,
+  const up = side===0 ? playerUp() : {spdMul:1, packFrames:PACK_FRAMES, maxBalls:MAXBALL};
+  return {side,x,y:groundY(x)-FOOT,vx:0,vy:0,grounded:true,balls:up.maxBalls,maxBalls:up.maxBalls,
+          spdMul:up.spdMul,packFrames:up.packFrames,
           cd:0,stun:0,frozenT:0,packing:0,packAcc:0,charge:0,charging:false,aimX:side===0?1:-1,aimY:-0.4,
           throwAnim:0,hits:0,flash:0,face:side===0?1:-1,
           bigT:0,rapidT:0,freezeT:0}; }   // power-up timers
@@ -235,7 +311,9 @@ let P=[], balls=[], puffs=[], tick=0, playing=false, over=false;
 /* ---------- input (floating twin-pads + pack button) ---------- */
 const pad={move:{active:false,id:-1,bx:0,by:0,tx:0,ty:0}, aim:{active:false,id:-1,bx:0,by:0,tx:0,ty:0}};
 let packBtn={x:0,y:0,r:0,held:false,id:-1};
-function layoutUI(){ packBtn.r=Math.max(34,Math.min(W,H)*0.072); packBtn.x=W/2; packBtn.y=H-packBtn.r-10; }
+function layoutUI(){ const R=PADR(); packBtn.r=Math.max(34,Math.min(W,H)*0.07);
+  const ax=W-R-26, ay=H-R-26;                          // aim pad rest center
+  packBtn.x=ax-(R+packBtn.r+10); packBtn.y=ay; }       // just left of the AIM stick, clear of its ring
 function toWorld(e){ const r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height) }; }
 function inPack(p){ return Math.hypot(p.x-packBtn.x,p.y-packBtn.y)<=packBtn.r; }
 
@@ -369,10 +447,10 @@ function controlHuman(){ const me=P[0]; if(!me||over)return;
   if(keys['ArrowUp']||keys['w']||keys[' '])jump=true;
   // packing (refill) — hold center button while grounded AND standing on deep snow
   const onSnow=canPackAt(me.x);
-  const wantPack = (packBtn.held||keys['Shift']) && me.grounded && me.balls<MAXBALL && onSnow;
+  const wantPack = (packBtn.held||keys['Shift']) && me.grounded && me.balls<me.maxBalls && onSnow;
   me.packing = wantPack ? me.packing+1 : 0;
   if(wantPack){ mvx=0; me.charging=false; me.charge=0; me.packAcc++; depleteSnow(me.x,0.003);   // packing cancels any wind-up
-    if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; sfxPack(); puff(me.x,me.y+12,'#ffffff',5); depleteSnow(me.x,0.05); } }
+    if(me.packAcc>=me.packFrames){ me.packAcc=0; me.balls++; sfxPack(); puff(me.x,me.y+12,'#ffffff',5); depleteSnow(me.x,0.05); } }
   else me.packAcc=Math.max(0,me.packAcc-2);
   // safety: if the aim pointer was lost (no pointerup), don't leave the player stuck charging/slowed
   if(me.charging && !pad.aim.active){ me.charging=false; me.charge=0; }
@@ -383,7 +461,7 @@ function controlHuman(){ const me=P[0]; if(!me||over)return;
 }
 function applyMove(p,mvx,jump,charging){
   if(p.stun>0){ p.stun--; mvx=0; jump=false; }
-  const maxs = charging?1.9:3.4;            // top walking speed (slower); even slower while winding up
+  const maxs = (charging?1.9:3.4)*(p.spdMul||1);   // top walking speed (boots upgrade nudges this up)
   p.vx += (mvx*maxs - p.vx)*0.13;           // ease toward target -> weighty start/stop inertia
   if(Math.abs(p.vx)<0.03)p.vx=0;
   if(Math.abs(mvx)>0.05)p.face=mvx>0?1:-1;
@@ -408,7 +486,7 @@ function controlAI(){ const me=P[1], foe=P[0]; if(!me||over)return;
   // refill when empty — must reach deep snow first
   if(me.balls===0){
     if(canPackAt(me.x)){ me.packing++; me.packAcc++; depleteSnow(me.x,0.003);
-      if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; depleteSnow(me.x,0.05); }
+      if(me.packAcc>=me.packFrames){ me.packAcc=0; me.balls++; depleteSnow(me.x,0.05); }
       applyMove(me,0,false,false); }
     else { const sx=nearestSnowX(me.x); const dir=sx==null?0:(sx<me.x?-1:1); me.packAcc=0; me.packing=0; applyMove(me,dir,false,false); }
     maybeDodge(me,foe); return; }
@@ -451,7 +529,7 @@ function simShot(sx,sy,vx,vy){ const foe=P[0]; let x=sx+Math.cos(Math.atan2(vy,v
 
 /* ---------- render ---------- */
 function draw(){
-  ctx.setTransform(drawScale,0,0,drawScale,0,0); ctx.imageSmoothingEnabled=false;
+  ctx.setTransform(drawScale,0,0,drawScale,0,0); ctx.imageSmoothingEnabled=true;
   ctx.save();
   if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.86; } else shake=0;
   // sky (theme-tinted per stage)
@@ -590,6 +668,7 @@ function drawPlayer(p){
   const moving=Math.abs(p.vx)>0.4 && p.grounded; const walk=moving?Math.sin(tick*0.4):0;
   const crouch = p.packing>0 ? 4 : 0;
   const hipY=4-crouch*0.2, shY=-8+crouch*0.5, headY=-15+crouch*0.6;
+  ctx.shadowColor='rgba(3,8,18,.6)'; ctx.shadowBlur=5;   // dark halo so the figure pops off the snowy background
   // legs
   ctx.strokeStyle=cd; ctx.lineWidth=3; ctx.lineCap='round';
   ctx.beginPath(); ctx.moveTo(0,hipY); ctx.lineTo(-4+walk*4,FOOT-2); ctx.moveTo(0,hipY); ctx.lineTo(4-walk*4,FOOT-2); ctx.stroke();
@@ -617,8 +696,9 @@ function drawPlayer(p){
     if(p.balls>0){ ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(12,0,3.4,0,7); ctx.fill(); }
     ctx.restore();
   }
+  ctx.shadowBlur=0;
   // ammo pips (snowballs held)
-  for(let i=0;i<MAXBALL;i++){ ctx.beginPath(); ctx.arc(-6+i*6,headY-13,2.2,0,7);
+  for(let i=0;i<p.maxBalls;i++){ ctx.beginPath(); ctx.arc(-(p.maxBalls-1)*3+i*6,headY-13,2.2,0,7);
     ctx.fillStyle=i<p.balls?'#ffffff':'#ffffff33'; ctx.fill(); }
   // frost overlay when frozen
   if(p.frozenT>0){ ctx.globalAlpha=0.32; ctx.fillStyle='#bfe8ff'; ctx.beginPath(); ctx.arc(0,-1,16,0,7); ctx.fill(); ctx.globalAlpha=1; }
@@ -662,13 +742,11 @@ function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=a
   if(cf>0.99){ uctx.fillStyle='#fff'; uctx.font='700 8px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.fillText('MAX',0,-6); }
   uctx.restore();
 }
-function drawReloadHint(){ const me=P[0]; if(!me||me.balls>0)return; uctx.textAlign='center';
-  uctx.save(); uctx.globalAlpha=0.6+0.4*Math.sin(tick*0.12); uctx.shadowColor='rgba(2,8,18,.85)'; uctx.shadowBlur=4;
-  if(canPackAt(me.x)){ uctx.fillStyle='#a8ff7a'; uctx.font='800 13px "Exo 2",sans-serif'; uctx.fillText('PACKで補充',me.x,me.y-44); }
-  else { const sx=nearestSnowX(me.x); if(sx!=null){ const dir=sx<me.x?-1:1;
-    uctx.translate(me.x,me.y-46); uctx.fillStyle='#dcecff'; uctx.font='800 12px "Exo 2",sans-serif'; uctx.fillText('雪だまりへ',0,-5);
-    uctx.strokeStyle='#dcecff'; uctx.lineWidth=2.8;
-    uctx.beginPath(); uctx.moveTo(-dir*10,4); uctx.lineTo(dir*10,4); uctx.lineTo(dir*3,-1); uctx.moveTo(dir*10,4); uctx.lineTo(dir*3,9); uctx.stroke(); } }
+function drawReloadHint(){ const me=P[0]; if(!me||me.balls>0)return;   // out of snowballs: silent arrow to nearest pile (no text)
+  if(canPackAt(me.x))return; const sx=nearestSnowX(me.x); if(sx==null)return; const dir=sx<me.x?-1:1;
+  uctx.save(); uctx.globalAlpha=0.5+0.4*Math.sin(tick*0.12); uctx.translate(me.x,me.y-44);
+  uctx.strokeStyle='#dcecff'; uctx.lineWidth=3; uctx.shadowColor='rgba(2,8,18,.8)'; uctx.shadowBlur=4;
+  uctx.beginPath(); uctx.moveTo(-dir*11,0); uctx.lineTo(dir*11,0); uctx.lineTo(dir*4,-5); uctx.moveTo(dir*11,0); uctx.lineTo(dir*4,5); uctx.stroke();
   uctx.restore();
 }
 function drawPads(){
@@ -685,7 +763,7 @@ function drawPad(pd,col){ const R=PADR();
   let dx=pd.tx-pd.bx,dy=pd.ty-pd.by,len=Math.hypot(dx,dy); if(len>R){dx*=R/len;dy*=R/len;}
   uctx.fillStyle=col; uctx.shadowColor=col; uctx.shadowBlur=16; uctx.beginPath(); uctx.arc(pd.bx+dx,pd.by+dy,20,0,7); uctx.fill(); uctx.shadowBlur=0;
   uctx.fillStyle='#06101f'; uctx.beginPath(); uctx.arc(pd.bx+dx,pd.by+dy,6,0,7); uctx.fill(); }
-function drawPackBtn(){ const me=P[0]; if(!me)return; const need=me.balls<MAXBALL; const onSnow=canPackAt(me.x); const R=packBtn.r;
+function drawPackBtn(){ const me=P[0]; if(!me)return; const need=me.balls<me.maxBalls; const onSnow=canPackAt(me.x); const R=packBtn.r;
   const active=need&&onSnow; const pulse=active?0.5+0.5*Math.sin(tick*0.12):0;
   const col=onSnow?'#cfe2ff':'#7f93b0';
   uctx.globalAlpha=packBtn.held?0.3:0.14+pulse*0.14; uctx.fillStyle=onSnow?'#ffffff':'#5a6f8c'; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y,R,0,7); uctx.fill();
@@ -694,31 +772,30 @@ function drawPackBtn(){ const me=P[0]; if(!me)return; const need=me.balls<MAXBAL
   // little stacked-snow glyph
   uctx.fillStyle=onSnow?'#ffffff':'#8fa4c0'; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y-R*0.12,R*0.26,0,7); uctx.fill();
   uctx.beginPath(); uctx.arc(packBtn.x-R*0.2,packBtn.y+R*0.14,R*0.18,0,7); uctx.arc(packBtn.x+R*0.2,packBtn.y+R*0.14,R*0.18,0,7); uctx.fill();
-  uctx.fillStyle=col; uctx.font='700 14px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.fillText('PACK',packBtn.x,packBtn.y+R*0.6);
-  if(!onSnow){ uctx.fillStyle='#9fb4d0'; uctx.font='700 12px "Exo 2",sans-serif'; uctx.fillText('雪だまりで',packBtn.x,packBtn.y+R*1.0); }
-  if(me.packAcc>0){ uctx.strokeStyle='#9dff6b'; uctx.lineWidth=3.5; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y,R-5,-Math.PI/2,-Math.PI/2+7*(me.packAcc/PACK_FRAMES)); uctx.stroke(); }
+  uctx.fillStyle=col; uctx.font='700 13px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.fillText('PACK',packBtn.x,packBtn.y+R*0.62);
+  if(me.packAcc>0){ uctx.strokeStyle='#9dff6b'; uctx.lineWidth=3.5; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y,R-5,-Math.PI/2,-Math.PI/2+7*(me.packAcc/me.packFrames)); uctx.stroke(); }
 }
 
 /* ---------- HUD (glass panels: HP hearts + snowball ammo) ---------- */
 function drawHUD(){
   const p0=P[0], p1=P[1];
-  hudPanel(14,12,false, WIN_HITS-(p1?p1.hits:0), p0?p0.balls:0, '#5fd0ff', (S.name||'YOU'));
-  hudPanel(W-14,12,true, WIN_HITS-(p0?p0.hits:0), p1?p1.balls:0, '#ff7a8e', 'COM');
+  hudPanel(14,12,false, WIN_HITS-(p1?p1.hits:0), p0?p0.balls:0, p0?p0.maxBalls:MAXBALL, '#5fd0ff', (S.name||'YOU'));
+  hudPanel(W-14,12,true, WIN_HITS-(p0?p0.hits:0), p1?p1.balls:0, p1?p1.maxBalls:MAXBALL, '#ff7a8e', 'COM');
   drawMatchInfo();
 }
 function drawMatchInfo(){ uctx.textAlign='center'; uctx.textBaseline='top';
   uctx.font='800 16px Orbitron,sans-serif'; uctx.fillStyle='rgba(226,240,255,.95)';
   uctx.shadowColor='rgba(2,8,18,.75)'; uctx.shadowBlur=4;
-  uctx.fillText('STAGE '+stage+' ・ '+theme.name, W/2, 12); uctx.shadowBlur=0;
+  uctx.fillText('STAGE '+stage+' ・ '+curMap.name, W/2, 12); uctx.shadowBlur=0;
   const y=38, r=6.5;
   for(let i=0;i<ROUNDS_TO_WIN;i++){ uctx.beginPath(); uctx.arc(W/2-20-i*18,y,r,0,7); uctx.fillStyle=i<roundWins[0]?'#5fd0ff':'rgba(255,255,255,.2)'; uctx.fill(); }
   for(let i=0;i<ROUNDS_TO_WIN;i++){ uctx.beginPath(); uctx.arc(W/2+20+i*18,y,r,0,7); uctx.fillStyle=i<roundWins[1]?'#ff7a8e':'rgba(255,255,255,.2)'; uctx.fill(); }
   uctx.textBaseline='alphabetic';
 }
-function hudPanel(ax,y,right,hp,ammo,col,label){
+function hudPanel(ax,y,right,hp,ammo,maxb,col,label){
   const hR=10, hGap=8, bR=8, bGap=6, padX=16, padY=11, labelH=20, rowGap=10, ammoLabelW=36;
   const heartsW=WIN_HITS*(hR*2)+(WIN_HITS-1)*hGap;
-  const ammoW=ammoLabelW + MAXBALL*(bR*2)+(MAXBALL-1)*bGap;
+  const ammoW=ammoLabelW + maxb*(bR*2)+(maxb-1)*bGap;
   uctx.font='800 17px Orbitron,sans-serif'; const lw=uctx.measureText(label).width;
   const w=Math.max(heartsW, ammoW, lw)+padX*2;
   const h=padY*2+labelH+(hR*2)+rowGap+(bR*2)+4;
@@ -735,7 +812,7 @@ function hudPanel(ax,y,right,hp,ammo,col,label){
   const by=hy+hR+rowGap+bR;
   uctx.font='700 12px "Exo 2",sans-serif'; uctx.fillStyle='rgba(208,224,246,.75)'; uctx.textBaseline='middle'; uctx.textAlign='left';
   uctx.fillText('雪玉', x+padX, by);
-  for(let i=0;i<MAXBALL;i++){ const cx=x+padX+ammoLabelW+bR+i*(bR*2+bGap); drawPip(cx,by,bR, i<ammo, '#bcd6f5'); }
+  for(let i=0;i<maxb;i++){ const cx=x+padX+ammoLabelW+bR+i*(bR*2+bGap); drawPip(cx,by,bR, i<ammo, '#bcd6f5'); }
   uctx.textBaseline='alphabetic';
 }
 function drawHeart(cx,cy,r,on){
@@ -775,13 +852,13 @@ const ovEl=document.getElementById('overlay'), taglineEl=document.getElementById
   logoEl=document.getElementById('logo'), resTitleEl=document.getElementById('resTitle'),
   resSubEl=document.getElementById('resSub'), startBtn=document.getElementById('startBtn'),
   homeBtn=document.getElementById('homeBtn');
-function showHome(){ playing=false; over=false; stage=1; resetInput();
+function showHome(){ playing=false; over=false; stage=1; advanceStage=false; resetInput(); closeShop();
   ovEl.classList.remove('hide');
   taglineEl.style.display=''; logoEl.style.display='';
   resTitleEl.style.display='none'; resSubEl.style.display='none';
-  homeBtn.style.display='none'; startBtn.textContent='はじめる';
+  homeBtn.style.display='none'; startBtn.textContent='はじめる'; renderCoins();
 }
-function startMatch(){ actx(); roundWins=[0,0]; round=1; startRound(); }
+function startMatch(){ actx(); closeShop(); if(advanceStage){ stage++; advanceStage=false; } roundWins=[0,0]; round=1; matchCoins=0; startRound(); }
 function startRound(){ fitCanvas(); applyTheme(stage); buildWorld(); layoutUI();
   wind=(Math.random()*2-1)*1.4;
   P=[makePlayer(0),makePlayer(1)]; balls=[]; puffs=[]; floaters=[]; items=[]; itemTimer=300;
@@ -791,6 +868,7 @@ function startRound(){ fitCanvas(); applyTheme(stage); buildWorld(); layoutUI();
   ovEl.classList.add('hide');
 }
 function endRound(w){ if(over)return; roundWins[w]++; playing=false;
+  if(w===0) matchCoins+=15;
   banner = w===0?'ROUND WON!':'ROUND LOST'; bannerT=70;
   if(roundWins[w]>=ROUNDS_TO_WIN){ setTimeout(()=>endMatch(w),1000); }
   else { round++; setTimeout(startRound,1550); }
@@ -799,13 +877,38 @@ function endMatch(w){ over=true; playing=false; resetInput();
   ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display='none';
   resTitleEl.style.display='block'; resSubEl.style.display='block';
   const score=roundWins[0]+' - '+roundWins[1];
-  if(w===0){ resTitleEl.textContent='STAGE '+stage+' CLEAR'; resTitleEl.style.color='#5fd0ff';
-    resSubEl.textContent='勝利！（'+score+'）次のステージへ'; startBtn.textContent='次のステージ'; stage++; sfxWin(); }
-  else { resTitleEl.textContent='YOU LOSE'; resTitleEl.style.color='#ff7a8e';
-    resSubEl.textContent='STAGE '+stage+' で敗北（'+score+'）'; startBtn.textContent='もう一度'; sfxLose(); }
-  homeBtn.style.display='';
+  if(w===0){ const gained=matchCoins+60+stage*20; addCoins(gained);
+    resTitleEl.textContent='STAGE '+stage+' CLEAR'; resTitleEl.style.color='#5fd0ff';
+    resSubEl.textContent='勝利 '+score+'　＋'+gained+' コイン'; startBtn.textContent='次のステージ'; advanceStage=true; sfxWin(); }
+  else { addCoins(matchCoins);
+    resTitleEl.textContent='YOU LOSE'; resTitleEl.style.color='#ff7a8e';
+    resSubEl.textContent='STAGE '+stage+' 敗北 '+score+'　＋'+matchCoins+' コイン'; startBtn.textContent='もう一度'; sfxLose(); }
+  homeBtn.style.display=''; renderCoins();
 }
 startBtn.onclick=startMatch; homeBtn.onclick=showHome;
+
+/* ---------- shop UI ---------- */
+const COIN_SVG='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#ffd45e" stroke="#b8801e" stroke-width="1.6"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="#b8801e" stroke-width="1.1" opacity=".6"/><path d="M12 7.5v9M9.8 9.6h3a1.6 1.6 0 0 1 0 3.2h-2.2a1.6 1.6 0 0 0 0 3.2h3" stroke="#8a5e14" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+const innerEl=document.querySelector('#overlay .inner'), coinbarEl=document.getElementById('coinbar'),
+  shopBtn=document.getElementById('shopBtn'), shopBackBtn=document.getElementById('shopBack'),
+  shopCoinsEl=document.getElementById('shopCoins'), shopListEl=document.getElementById('shopList');
+function coinHTML(n){ return COIN_SVG+'<span>'+n+'</span>'; }
+function renderCoins(){ coinbarEl.innerHTML=coinHTML(save.coins); shopCoinsEl.innerHTML=coinHTML(save.coins); }
+function openShop(){ innerEl.classList.add('shopping'); renderShop(); }
+function closeShop(){ innerEl.classList.remove('shopping'); }
+function renderShop(){ renderCoins(); shopListEl.innerHTML='';
+  UP.forEach(u=>{ const lv=save.up[u.id]||0, maxed=lv>=u.max, cost=u.cost(lv);
+    let dots=''; for(let i=0;i<u.max;i++) dots+='<i class="'+(i<lv?'on':'')+'"></i>';
+    const row=document.createElement('div'); row.className='shoprow';
+    row.innerHTML='<div class="ic">'+u.icon+'</div><div class="info"><div class="nm">'+u.name+'</div><div class="ds">'+u.desc+'</div><div class="lv">'+dots+'</div></div>'+
+      (maxed?'<button class="buy max" disabled>MAX</button>':'<button class="buy"'+(save.coins<cost?' disabled':'')+'>'+coinHTML(cost)+'</button>');
+    if(!maxed){ row.querySelector('.buy').onclick=()=>buy(u.id); }
+    shopListEl.appendChild(row); });
+}
+function buy(id){ const u=UP.find(x=>x.id===id), lv=save.up[id]||0; if(lv>=u.max)return; const cost=u.cost(lv);
+  if(save.coins<cost)return; save.coins-=cost; save.up[id]=lv+1; persist(); sfxPack(); renderShop(); }
+shopBtn.onclick=openShop; shopBackBtn.onclick=closeShop;
+renderCoins();
 
 function checkRotate(){ const portrait=window.innerHeight>window.innerWidth;
   document.getElementById('rotate').classList.toggle('show', portrait && 'ontouchstart' in window); }
