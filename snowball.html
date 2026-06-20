@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>雪合戦オンライン — リアルタイム雪合戦バトル</title>
 <meta name="theme-color" content="#0a1426">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@400;600;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
@@ -14,9 +17,10 @@
   html,body{ height:100%; background:var(--bg); overflow:hidden; font-family:"Exo 2",sans-serif; color:var(--tx2); }
   .orb{ font-family:"Orbitron",sans-serif; }
   #stage{ position:fixed; inset:0; }
-  canvas#cv{ display:block; width:100%; height:100%; touch-action:none; background:#0c1830;
-    image-rendering:pixelated; image-rendering:crisp-edges; }
-  #stage::after{ content:""; position:absolute; inset:0; pointer-events:none;
+  #stage canvas{ position:absolute; inset:0; width:100%; height:100%; }
+  canvas#cv{ z-index:1; touch-action:none; background:#0c1830; image-rendering:pixelated; image-rendering:crisp-edges; }
+  canvas#ui{ z-index:3; pointer-events:none; }   /* crisp full-res layer for HUD / text / controls — above the vignette */
+  #stage::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
     background:radial-gradient(130% 130% at 50% 40%, #0000 56%, #00000055 100%); }
 
   /* rotate gate */
@@ -38,32 +42,33 @@
   #logo .b{ color:var(--c1); }
   #logo .on{ display:block; font-family:"Orbitron"; font-weight:700; font-size:clamp(13px,3vw,20px); letter-spacing:8px; color:var(--c1); margin-top:8px; }
   .tagline{ font-family:"Orbitron"; font-size:11px; letter-spacing:5px; color:var(--c1); opacity:.85; }
-  #resTitle{ font-family:"Orbitron"; font-weight:900; font-size:clamp(28px,7vw,54px); letter-spacing:3px; display:none; }
+  #resTitle{ font-family:"Orbitron"; font-weight:900; font-size:clamp(28px,7vw,54px); letter-spacing:3px; display:none;
+    text-shadow:0 0 24px currentColor, 0 3px 0 #06101f; }
   #resSub{ font-size:14px; color:var(--tx2); display:none; }
-  .start{ font-family:"Orbitron"; font-weight:700; letter-spacing:2px; font-size:18px; color:#04101f; cursor:pointer;
-    padding:15px 38px; border:none; border-radius:14px; background:linear-gradient(180deg,#7fe0ff,#37a8e6);
-    box-shadow:0 8px 22px -6px #2aa0e0aa, inset 0 1px 0 #ffffff66; }
+  .btnrow{ display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:4px; }
+  .start{ font-family:"Orbitron"; font-weight:700; letter-spacing:2px; font-size:18px; color:#04121f; cursor:pointer;
+    padding:15px 42px; border:none; border-radius:14px; background:linear-gradient(180deg,#8fe7ff,#36a9e8);
+    box-shadow:0 12px 28px -8px #2aa0e0cc, inset 0 1px 0 #ffffff99, inset 0 -2px 0 #0b6aa055; transition:transform .06s; }
   .start:active{ transform:translateY(2px); }
-  .howto{ max-width:440px; font-size:13px; line-height:1.7; color:var(--tx2); }
-  .howto b{ color:var(--tx); }
-  .key{ display:inline-block; padding:1px 7px; border-radius:6px; background:#16243e; border:1px solid #2a3c5c; color:#cfe2ff; font-size:12px; }
-  .credit{ font-size:11px; color:#6f86a8; }
+  .ghost{ font-family:"Orbitron"; font-weight:700; letter-spacing:2px; font-size:14px; cursor:pointer; color:#bcd2ee;
+    padding:14px 26px; border-radius:12px; background:rgba(18,32,56,.6); border:1px solid #2c405e; box-shadow:inset 0 1px 0 #ffffff14; transition:transform .06s; }
+  .ghost:active{ transform:translateY(2px); }
+  .credit{ font-size:11px; color:#6f86a8; letter-spacing:.5px; }
   /* responsive: short landscape phones */
   @media (max-height:480px){
     .inner{ gap:9px; padding:10px; }
     #logo{ font-size:clamp(30px,9vh,52px); letter-spacing:4px; }
     #logo .on{ font-size:11px; letter-spacing:6px; margin-top:5px; }
     .tagline{ font-size:9px; letter-spacing:3px; }
-    .howto{ font-size:11px; line-height:1.5; }
-    .start{ padding:11px 26px; font-size:16px; }
+    .start{ padding:11px 28px; font-size:16px; }
+    .ghost{ padding:11px 20px; font-size:13px; }
     .credit{ display:none; }
     #resTitle{ font-size:clamp(24px,7vh,40px); }
   }
-  @media (max-width:600px){ .howto{ max-width:92vw; } }
 </style>
 </head>
 <body>
-<div id="stage"><canvas id="cv"></canvas></div>
+<div id="stage"><canvas id="cv"></canvas><canvas id="ui"></canvas></div>
 
 <div id="rotate"><div class="phone"></div><h2>PLEASE ROTATE</h2><p>横画面（ヨコ向き）でプレイしてください</p></div>
 
@@ -73,12 +78,9 @@
     <div id="logo">雪<span class="b">合戦</span><span class="on">O N L I N E</span></div>
     <div id="resTitle" class="orb"></div>
     <div id="resSub"></div>
-    <button class="start orb" id="startBtn">SNOWBALL FIGHT</button>
-    <div class="howto" id="howto">
-      <b>左パッド</b>＝移動／上にはじくとジャンプ &nbsp;・&nbsp; <b>右パッド</b>＝長押しで<b>チャージ</b>（その場でOK）→指をはなして投げる。ドラッグで方向、軽くはなせば相手に自動で山なり投げ<br>
-      <b>中央ボタン</b>＝しゃがんで雪をつくる（雪玉の補充）。雪玉は手持ち <b>3個</b>、撃ち切ったら補充。<br>
-      補充できるのは<b>光っている白い「雪だまり」の上だけ</b>（地面の数か所・目印マーカーつき）。<br>
-      雪山のかげに<b>隠れて</b>避けながら、相手に <b>5回</b> 当てたら勝ち。
+    <div class="btnrow">
+      <button class="start orb" id="startBtn">はじめる</button>
+      <button class="ghost orb" id="homeBtn" style="display:none">ホーム</button>
     </div>
     <div class="credit">プロトタイプ ／ 横画面・スマホ対応 ／ オリジナル作品</div>
   </div>
@@ -86,13 +88,16 @@
 
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-let W=1280,H=720,VW=1280,VH=720,drawScale=1; const ZOOM=1.5, PX=2;
+const uic=document.getElementById('ui'), uctx=uic.getContext('2d');
+let W=1280,H=720,VW=1280,VH=720,drawScale=1,uiScale=1,DPR=1; const ZOOM=1.5, PX=2;
 function fitCanvas(){
   VW=Math.max(320,Math.floor(window.innerWidth));
   VH=Math.max(320,Math.floor(window.innerHeight));
+  DPR=Math.min(window.devicePixelRatio||1, 2.5);
   W=Math.round(VW*ZOOM); H=Math.round(VH*ZOOM);
   const pw=Math.max(180,Math.round(VW/PX)), ph=Math.max(140,Math.round(VH/PX));
   cv.width=pw; cv.height=ph; drawScale=pw/W;
+  uic.width=Math.round(VW*DPR); uic.height=Math.round(VH*DPR); uiScale=uic.width/W;   // world coords -> crisp device px
 }
 window.addEventListener('resize',()=>{ fitCanvas(); buildWorld(); layoutUI(); checkRotate();
   for(const r of P){ r.x=Math.max(18,Math.min(r.x,W-18)); r.y=groundY(r.x)-FOOT; r.vx=r.vy=0; r.grounded=true; } });
@@ -106,7 +111,7 @@ const PACK_FRAMES=26;     // frames to pack one snowball
 const CHARGE_MAX=46;      // frames to reach full charge
 const STUN_FRAMES=26;     // hit stun
 const JUMP_THRESH=0.55;   // fraction of pad radius for a jump flick
-const PADR=()=> Math.max(70, Math.min(W,H)*0.18);
+const PADR=()=> Math.max(60, Math.min(W,H)*0.15);
 
 /* ---------- audio ---------- */
 let AC=null; const actx=()=>{ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return AC; };
@@ -146,27 +151,27 @@ function nearestSnowX(from){ let best=null,bd=1e9, any=null,ad=1e9;   // prefer 
 
 function buildWorld(){
   const n=Math.ceil(W/GSTEP)+2; ground=new Float32Array(n);
-  const base=H*0.78;
+  const base=H*0.58;   // battlefield floor raised so the bottom band is free for the control pads
   for(let i=0;i<n;i++){ const x=i*GSTEP;
     ground[i]=base - 26*Math.sin(x*0.0042+1.1) - 14*Math.sin(x*0.011+0.4) - 8*Math.sin(x*0.02+2.0); }
   // reload ONLY at discrete, clearly-marked snow piles — the rest of the ground is packed (no reload)
   snowMax=new Float32Array(n); snowDepth=new Float32Array(n);
   snowPiles=[]; [0.13,0.37,0.63,0.87].forEach(fx=>{ snowPiles.push({x:W*fx, r:Math.max(34,W*0.035)}); });
   for(const p of snowPiles){ const c=(p.x/GSTEP)|0, rad=Math.max(2,(p.r/GSTEP)|0);
-    for(let k=-rad;k<=rad;k++){ const j=c+k; if(j>=0&&j<n){ const f=1-Math.abs(k)/rad; const v=0.6+0.4*f; if(v>snowMax[j]){ snowMax[j]=v; snowDepth[j]=v; } } } }
+    for(let k=-rad;k<=rad;k++){ const j=c+k; if(j>=0&&j<n){ const f=1-Math.abs(k)/rad; const v=0.85+0.15*f; if(v>snowMax[j]){ snowMax[j]=v; snowDepth[j]=v; } } } }
   // cover mounds (snow forts) — a few between the players
   mounds=[];
   const my=(fx)=>groundY(W*fx);
   [0.30,0.5,0.70].forEach((fx,k)=>{ const r=k===1?46:38; mounds.push({x:W*fx,y:my(fx)-r*0.35,r,hp:1,max:1}); });
   // background snowy hills
-  bgHills=[]; for(let layer=0;layer<3;layer++){ const pts=[],step=40,amp=40+layer*26,off=H*(0.5+layer*0.06);
+  bgHills=[]; for(let layer=0;layer<3;layer++){ const pts=[],step=40,amp=40+layer*26,off=H*(0.40+layer*0.05);
     for(let x=0;x<=W+step;x+=step) pts.push(off - amp*(0.5+0.5*Math.sin(x*0.003*(1+layer*0.4)+layer*2)));
     bgHills.push({pts,step,y:off,shade:layer}); }
   // snowy pines (background decoration, non-colliding)
   trees=[]; for(let t=0;t<7;t++){ const x=W*(0.08+t*0.13)+ (t%2?20:-20); const h=46+(t%3)*16; trees.push({x,gy:groundY(x),h,scale:0.8+(t%3)*0.18}); }
   // distant village on the far hillside: cabins + flickering town lights
-  cabins=[]; [0.13,0.21,0.61,0.69].forEach((fx,i)=>{ const w=13+(i%2)*7; cabins.push({x:W*fx,y:H*0.625,w,h:w*0.85}); });
-  townLights=[]; for(let i=0;i<26;i++) townLights.push({x:W*(0.07+Math.random()*0.8), y:H*(0.47+Math.random()*0.15), tw:Math.random()*7});
+  cabins=[]; [0.13,0.21,0.61,0.69].forEach((fx,i)=>{ const w=13+(i%2)*7; cabins.push({x:W*fx,y:H*0.53,w,h:w*0.85}); });
+  townLights=[]; for(let i=0;i<26;i++) townLights.push({x:W*(0.07+Math.random()*0.8), y:H*(0.40+Math.random()*0.12), tw:Math.random()*7});
   // snowfall
   snowflakes=[]; for(let i=0;i<90;i++) snowflakes.push({x:Math.random()*W,y:Math.random()*H,r:0.6+Math.random()*1.8,sp:0.4+Math.random()*1.1,sw:Math.random()*7});
 }
@@ -190,7 +195,9 @@ function onDown(e){ if(!playing)return; const p=toWorld(e);
   if(inPack(p) && !packBtn.held){ packBtn.held=true; packBtn.id=e.pointerId; e.preventDefault(); return; }
   const which = p.x < W/2 ? 'move' : 'aim'; const pd=pad[which];
   if(pd.active) return;
-  pd.active=true; pd.id=e.pointerId; pd.bx=pd.tx=p.x; pd.by=pd.ty=p.y;
+  // anchor the pad base inside the bottom control band so its ring never covers the battlefield
+  const by=Math.max(p.y, H-PADR()-12);
+  pd.active=true; pd.id=e.pointerId; pd.bx=pd.tx=p.x; pd.by=pd.ty=by;
   if(which==='aim'){ const me=P[0]; me.charging=true; me.charge=0; }
   e.preventDefault();
 }
@@ -280,8 +287,8 @@ function controlHuman(){ const me=P[0]; if(!me||over)return;
   const onSnow=canPackAt(me.x);
   const wantPack = (packBtn.held||keys['Shift']) && me.grounded && me.balls<MAXBALL && onSnow;
   me.packing = wantPack ? me.packing+1 : 0;
-  if(wantPack){ mvx=0; me.charging=false; me.charge=0; me.packAcc++; depleteSnow(me.x,0.012);   // packing cancels any wind-up
-    if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; sfxPack(); puff(me.x,me.y+12,'#ffffff',5); depleteSnow(me.x,0.18); } }
+  if(wantPack){ mvx=0; me.charging=false; me.charge=0; me.packAcc++; depleteSnow(me.x,0.003);   // packing cancels any wind-up
+    if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; sfxPack(); puff(me.x,me.y+12,'#ffffff',5); depleteSnow(me.x,0.05); } }
   else me.packAcc=Math.max(0,me.packAcc-2);
   // safety: if the aim pointer was lost (no pointerup), don't leave the player stuck charging/slowed
   if(me.charging && !pad.aim.active){ me.charging=false; me.charge=0; }
@@ -313,8 +320,8 @@ function controlAI(){ const me=P[1], foe=P[0]; if(!me||over)return;
 
   // refill when empty — must reach deep snow first
   if(me.balls===0){
-    if(canPackAt(me.x)){ me.packing++; me.packAcc++; depleteSnow(me.x,0.012);
-      if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; depleteSnow(me.x,0.18); }
+    if(canPackAt(me.x)){ me.packing++; me.packAcc++; depleteSnow(me.x,0.003);
+      if(me.packAcc>=PACK_FRAMES){ me.packAcc=0; me.balls++; depleteSnow(me.x,0.05); }
       applyMove(me,0,false,false); }
     else { const sx=nearestSnowX(me.x); const dir=sx==null?0:(sx<me.x?-1:1); me.packAcc=0; me.packing=0; applyMove(me,dir,false,false); }
     maybeDodge(me,foe); return; }
@@ -372,14 +379,15 @@ function draw(){
   ctx.fillStyle='#cdd9ee'; ctx.beginPath(); ctx.arc(mx-mr*0.3,myy-mr*0.2,mr*0.5,0,7); ctx.fill();
   ctx.fillStyle='#0b1830'; ctx.beginPath(); ctx.arc(mx-mr*0.55,myy-mr*0.35,mr*0.9,0,7); ctx.fill();
   // bg hills (back->front) with depth, distant village nestled between ridges
-  drawHill(bgHills[0],0); drawHill(bgHills[1],1); drawVillage(); drawHill(bgHills[2],2);
+  drawHill(bgHills[0],0); drawHill(bgHills[1],1); drawHill(bgHills[2],2);
   // horizon haze separates the ridges and makes the front one pop
-  const hz=ctx.createLinearGradient(0,H*0.46,0,H*0.66); hz.addColorStop(0,'#1a2b4a00'); hz.addColorStop(1,'#1a2b4a55');
-  ctx.fillStyle=hz; ctx.fillRect(0,H*0.46,W,H*0.22);
+  const hz=ctx.createLinearGradient(0,H*0.40,0,H*0.58); hz.addColorStop(0,'#1a2b4a00'); hz.addColorStop(1,'#1a2b4a55');
+  ctx.fillStyle=hz; ctx.fillRect(0,H*0.40,W,H*0.18);
+  drawVillage();
   // trees (behind ground line)
   for(const tr of trees) drawPine(tr);
   // ground — packed snow (plain, muted) so the bright refill piles clearly stand out
-  const gg=ctx.createLinearGradient(0,H*0.7,0,H); gg.addColorStop(0,'#9fb2cc'); gg.addColorStop(1,'#7d92b0');
+  const gg=ctx.createLinearGradient(0,H*0.54,0,H); gg.addColorStop(0,'#9fb2cc'); gg.addColorStop(1,'#7d92b0');
   ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,H); let gx=0;
   for(let i=0;i<ground.length;i++){ ctx.lineTo(gx,ground[i]); gx+=GSTEP; } ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
   // thin lighter crust line along the surface
@@ -408,9 +416,8 @@ function draw(){
   for(const p of puffs){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
   ctx.globalAlpha=1;
   // aim preview + pads + pack button (human)
-  if(playing&&!over){ drawAimPreview(); drawReloadHint(); drawPads(); drawPackBtn(); }
   ctx.restore();
-  drawHUD();
+  drawUI();
 }
 
 /* ---------- aurora ---------- */
@@ -527,73 +534,100 @@ function drawPlayer(p){
   ctx.restore();
 }
 
-function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=aimVec();
-  const cf=me.charge/CHARGE_MAX, power=8+cf*9;
-  const ang = v.frac>=0.08 ? v.ang : aimAtFoe(me);   // matches releaseThrow: preview the auto-aim too
-  let x=me.x+Math.cos(ang)*16, y=me.y-8+Math.sin(ang)*16, vx=Math.cos(ang)*power, vy=Math.sin(ang)*power;
-  ctx.fillStyle='#ffffff'; for(let t=0;t<16;t++){ vy+=GRAV; vx+=wind*0.04; x+=vx; y+=vy;
-    ctx.globalAlpha=(1-t/16)*0.7; ctx.beginPath(); ctx.arc(x,y,2,0,7); ctx.fill(); if(y>groundY(x))break; }
-  ctx.globalAlpha=1;
-  // charge bar (always visible while holding)
-  const col=cf<0.5?'#9dff6b':cf<0.8?'#ffd45e':'#ff6f8b';
-  ctx.save(); ctx.translate(me.x,me.y-32);
-  ctx.fillStyle='#0009'; ctx.fillRect(-15,-1,30,6);
-  ctx.fillStyle=col; ctx.fillRect(-14,0,28*cf,4);
-  if(cf>0.99){ ctx.fillStyle='#fff'; ctx.font='700 7px Orbitron,sans-serif'; ctx.textAlign='center'; ctx.fillText('MAX',0,-4); }
-  ctx.restore();
+/* ---------- crisp UI layer (drawn on uctx, full device resolution) ---------- */
+function rrect(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function drawUI(){
+  uctx.setTransform(uiScale,0,0,uiScale,0,0); uctx.clearRect(0,0,W,H);
+  uctx.imageSmoothingEnabled=true; uctx.lineCap='round'; uctx.lineJoin='round'; uctx.textBaseline='alphabetic';
+  if(playing&&!over){ drawAimPreview(); drawReloadHint(); drawPads(); drawPackBtn(); drawHUD(); }
 }
 
-function drawReloadHint(){ const me=P[0]; if(!me||me.balls>0)return; ctx.textAlign='center';
-  ctx.globalAlpha=0.55+0.45*Math.sin(tick*0.12);
-  if(canPackAt(me.x)){ ctx.fillStyle='#9dff6b'; ctx.font='700 11px "Exo 2",sans-serif'; ctx.fillText('PACKで補充',me.x,me.y-42); }
+function drawAimPreview(){ const me=P[0]; if(!me||!me.charging)return; const v=aimVec();
+  const cf=me.charge/CHARGE_MAX, power=8+cf*9;
+  const ang = v.frac>=0.08 ? v.ang : aimAtFoe(me);
+  let x=me.x+Math.cos(ang)*16, y=me.y-8+Math.sin(ang)*16, vx=Math.cos(ang)*power, vy=Math.sin(ang)*power;
+  uctx.fillStyle='#eaf6ff'; for(let t=0;t<18;t++){ vy+=GRAV; vx+=wind*0.04; x+=vx; y+=vy;
+    uctx.globalAlpha=(1-t/18)*0.75; uctx.beginPath(); uctx.arc(x,y,2.1,0,7); uctx.fill(); if(y>groundY(x))break; }
+  uctx.globalAlpha=1;
+  // charge bar above the player
+  const col=cf<0.5?'#9dff6b':cf<0.8?'#ffd45e':'#ff6f8b';
+  uctx.save(); uctx.translate(me.x,me.y-34);
+  uctx.fillStyle='rgba(6,14,28,.7)'; rrect(uctx,-17,-2,34,8,4); uctx.fill();
+  uctx.fillStyle=col; rrect(uctx,-15,0,30*cf,4,2); uctx.fill();
+  if(cf>0.99){ uctx.fillStyle='#fff'; uctx.font='700 8px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.fillText('MAX',0,-6); }
+  uctx.restore();
+}
+function drawReloadHint(){ const me=P[0]; if(!me||me.balls>0)return; uctx.textAlign='center';
+  uctx.save(); uctx.globalAlpha=0.6+0.4*Math.sin(tick*0.12); uctx.shadowColor='rgba(2,8,18,.85)'; uctx.shadowBlur=4;
+  if(canPackAt(me.x)){ uctx.fillStyle='#a8ff7a'; uctx.font='800 13px "Exo 2",sans-serif'; uctx.fillText('PACKで補充',me.x,me.y-44); }
   else { const sx=nearestSnowX(me.x); if(sx!=null){ const dir=sx<me.x?-1:1;
-    ctx.save(); ctx.translate(me.x,me.y-44); ctx.fillStyle='#cfe2ff'; ctx.font='700 10px "Exo 2",sans-serif'; ctx.fillText('雪だまりへ',0,-4);
-    ctx.strokeStyle='#cfe2ff'; ctx.lineWidth=2.5; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(-dir*9,4); ctx.lineTo(dir*9,4); ctx.lineTo(dir*3,-1); ctx.moveTo(dir*9,4); ctx.lineTo(dir*3,9); ctx.stroke(); ctx.restore(); } }
-  ctx.globalAlpha=1;
+    uctx.translate(me.x,me.y-46); uctx.fillStyle='#dcecff'; uctx.font='800 12px "Exo 2",sans-serif'; uctx.fillText('雪だまりへ',0,-5);
+    uctx.strokeStyle='#dcecff'; uctx.lineWidth=2.8;
+    uctx.beginPath(); uctx.moveTo(-dir*10,4); uctx.lineTo(dir*10,4); uctx.lineTo(dir*3,-1); uctx.moveTo(dir*10,4); uctx.lineTo(dir*3,9); uctx.stroke(); } }
+  uctx.restore();
 }
 function drawPads(){
-  drawPad(pad.move,'#7fe6ff'); drawPad(pad.aim,'#ffd98a');
-  // resting hints
-  if(!pad.move.active){ hintPad(PADR()+24, H-PADR()-24,'#7fe6ff','MOVE'); }
-  if(!pad.aim.active){ hintPad(W-PADR()-24, H-PADR()-24,'#ffd98a','AIM'); }
+  if(pad.move.active) drawPad(pad.move,'#7fe6ff'); else hintPad(PADR()+26, H-PADR()-26,'#7fe6ff','MOVE');
+  if(pad.aim.active)  drawPad(pad.aim,'#ffd98a');  else hintPad(W-PADR()-26, H-PADR()-26,'#ffd98a','AIM');
 }
-function hintPad(x,y,col,label){ const R=PADR(); ctx.globalAlpha=.07; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,R,0,7); ctx.fill();
-  ctx.globalAlpha=.3; ctx.strokeStyle=col; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,R,0,7); ctx.stroke();
-  ctx.fillStyle=col; ctx.font='700 12px Orbitron,sans-serif'; ctx.textAlign='center'; ctx.fillText(label,x,y+4); ctx.globalAlpha=1; }
-function drawPad(pd,col){ if(!pd.active)return; const R=PADR();
-  ctx.globalAlpha=.1; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(pd.bx,pd.by,R,0,7); ctx.fill();
-  ctx.globalAlpha=.4; ctx.strokeStyle=col; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(pd.bx,pd.by,R,0,7); ctx.stroke(); ctx.globalAlpha=1;
+function hintPad(x,y,col,label){ const R=PADR();
+  uctx.globalAlpha=.06; uctx.fillStyle=col; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.fill();
+  uctx.globalAlpha=.28; uctx.strokeStyle=col; uctx.lineWidth=2; uctx.setLineDash([5,7]); uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.stroke(); uctx.setLineDash([]);
+  uctx.globalAlpha=.5; uctx.fillStyle=col; uctx.font='700 12px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.textBaseline='middle'; uctx.fillText(label,x,y); uctx.textBaseline='alphabetic'; uctx.globalAlpha=1; }
+function drawPad(pd,col){ const R=PADR();
+  uctx.globalAlpha=.1; uctx.fillStyle=col; uctx.beginPath(); uctx.arc(pd.bx,pd.by,R,0,7); uctx.fill();
+  uctx.globalAlpha=.45; uctx.strokeStyle=col; uctx.lineWidth=2.5; uctx.beginPath(); uctx.arc(pd.bx,pd.by,R,0,7); uctx.stroke(); uctx.globalAlpha=1;
   let dx=pd.tx-pd.bx,dy=pd.ty-pd.by,len=Math.hypot(dx,dy); if(len>R){dx*=R/len;dy*=R/len;}
-  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(pd.bx+dx,pd.by+dy,18,0,7); ctx.fill(); ctx.shadowBlur=0;
-  ctx.fillStyle='#06101f'; ctx.beginPath(); ctx.arc(pd.bx+dx,pd.by+dy,5,0,7); ctx.fill(); }
+  uctx.fillStyle=col; uctx.shadowColor=col; uctx.shadowBlur=16; uctx.beginPath(); uctx.arc(pd.bx+dx,pd.by+dy,20,0,7); uctx.fill(); uctx.shadowBlur=0;
+  uctx.fillStyle='#06101f'; uctx.beginPath(); uctx.arc(pd.bx+dx,pd.by+dy,6,0,7); uctx.fill(); }
 function drawPackBtn(){ const me=P[0]; if(!me)return; const need=me.balls<MAXBALL; const onSnow=canPackAt(me.x); const R=packBtn.r;
   const active=need&&onSnow; const pulse=active?0.5+0.5*Math.sin(tick*0.12):0;
   const col=onSnow?'#cfe2ff':'#7f93b0';
-  ctx.globalAlpha=packBtn.held?0.28:0.13+pulse*0.12; ctx.fillStyle=onSnow?'#ffffff':'#5a6f8c'; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y,R,0,7); ctx.fill();
-  ctx.globalAlpha=active?0.5+pulse*0.4:0.3; ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y,R,0,7); ctx.stroke();
-  ctx.globalAlpha=1; ctx.fillStyle=onSnow?'#ffffff':'#8fa4c0'; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y-3,R*0.28,0,7); ctx.fill();
-  ctx.fillStyle=col; ctx.font='700 11px Orbitron,sans-serif'; ctx.textAlign='center'; ctx.fillText('PACK',packBtn.x,packBtn.y+R*0.55);
-  if(!onSnow){ ctx.fillStyle='#9fb4d0'; ctx.font='700 8px "Exo 2",sans-serif'; ctx.fillText('雪だまりで',packBtn.x,packBtn.y+R*0.92); }
-  // pack progress ring
-  if(me.packAcc>0){ ctx.strokeStyle='#9dff6b'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(packBtn.x,packBtn.y,R-4,-Math.PI/2,-Math.PI/2+7*(me.packAcc/PACK_FRAMES)); ctx.stroke(); }
+  uctx.globalAlpha=packBtn.held?0.3:0.14+pulse*0.14; uctx.fillStyle=onSnow?'#ffffff':'#5a6f8c'; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y,R,0,7); uctx.fill();
+  uctx.globalAlpha=active?0.55+pulse*0.4:0.32; uctx.strokeStyle=col; uctx.lineWidth=2.5; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y,R,0,7); uctx.stroke();
+  uctx.globalAlpha=1;
+  // little stacked-snow glyph
+  uctx.fillStyle=onSnow?'#ffffff':'#8fa4c0'; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y-R*0.12,R*0.26,0,7); uctx.fill();
+  uctx.beginPath(); uctx.arc(packBtn.x-R*0.2,packBtn.y+R*0.14,R*0.18,0,7); uctx.arc(packBtn.x+R*0.2,packBtn.y+R*0.14,R*0.18,0,7); uctx.fill();
+  uctx.fillStyle=col; uctx.font='700 14px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.fillText('PACK',packBtn.x,packBtn.y+R*0.6);
+  if(!onSnow){ uctx.fillStyle='#9fb4d0'; uctx.font='700 12px "Exo 2",sans-serif'; uctx.fillText('雪だまりで',packBtn.x,packBtn.y+R*1.0); }
+  if(me.packAcc>0){ uctx.strokeStyle='#9dff6b'; uctx.lineWidth=3.5; uctx.beginPath(); uctx.arc(packBtn.x,packBtn.y,R-5,-Math.PI/2,-Math.PI/2+7*(me.packAcc/PACK_FRAMES)); uctx.stroke(); }
 }
 
-/* ---------- HUD (score pips) ---------- */
-const hudCv=document.createElement('canvas'); // unused; HUD drawn on main canvas overlay via DOM-free approach
-function drawHUD(){ // draw directly on canvas top corners (screen-ish via world coords)
-  // P1 left, COM right — snowball pip rows
-  const r=8, gap=7, pad2=16;
-  ctx.setTransform(drawScale,0,0,drawScale,0,0);
-  pipRow(pad2, pad2, P[0]?P[0].hits:0, '#5fd0ff', false, (S.name||'YOU'));
-  pipRow(W-pad2, pad2, P[1]?P[1].hits:0, '#ff7a8e', true, 'COM');
+/* ---------- HUD (glass score panels) ---------- */
+function drawHUD(){
+  hudPanel(14,12,false, P[0]?P[0].hits:0, '#5fd0ff','#1c9be0', (S.name||'YOU'));
+  hudPanel(W-14,12,true, P[1]?P[1].hits:0, '#ff7a8e','#ff3057', 'COM');
 }
-function pipRow(x,y,hits,col,right,label){ const r=8,gap=8;
-  ctx.font='700 13px Orbitron,sans-serif'; ctx.fillStyle=col; ctx.textAlign=right?'right':'left';
-  ctx.fillText(label,x,y+10);
-  for(let i=0;i<WIN_HITS;i++){ const cx = right? x-6-i*(r*2+gap)-r : x+6+i*(r*2+gap)+r; const cy=y+30;
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fillStyle=i<hits?'#ffffff':'#ffffff22'; ctx.fill();
-    ctx.lineWidth=1.5; ctx.strokeStyle=col; ctx.globalAlpha=i<hits?1:0.5; ctx.stroke(); ctx.globalAlpha=1; } }
+function hudPanel(ax,y,right,hits,col,col2,label){
+  const pipR=10, gap=8, padX=15, padY=11, labelH=19;
+  const labelFont='800 15px Orbitron,sans-serif', scoreFont='800 13px Orbitron,sans-serif';
+  const pipW=WIN_HITS*(pipR*2)+(WIN_HITS-1)*gap;
+  uctx.font=labelFont; const lw=uctx.measureText(label).width;
+  uctx.font=scoreFont; const sw=uctx.measureText(hits+'/'+WIN_HITS).width;
+  const w=Math.max(pipW, lw+sw+padX) + padX*2;
+  const h=labelH+pipR*2+padY*2+4;
+  const x = right? ax-w : ax;
+  uctx.fillStyle='rgba(9,16,30,.62)'; rrect(uctx,x,y,w,h,14); uctx.fill();
+  uctx.lineWidth=1.5; uctx.strokeStyle=col+'5e'; rrect(uctx,x,y,w,h,14); uctx.stroke();
+  uctx.fillStyle=col; rrect(uctx, right? x+w-4 : x, y+9, 4, h-18, 2); uctx.fill();   // accent edge
+  uctx.textBaseline='top';
+  uctx.font=labelFont; uctx.fillStyle=col; uctx.textAlign=right?'right':'left';
+  uctx.fillText(label, right? x+w-padX : x+padX, y+padY);
+  uctx.font=scoreFont; uctx.fillStyle='rgba(255,255,255,.8)'; uctx.textAlign=right?'left':'right';
+  uctx.fillText(hits+'/'+WIN_HITS, right? x+padX : x+w-padX, y+padY+2);
+  const py=y+padY+labelH+pipR+2;
+  for(let i=0;i<WIN_HITS;i++){ const cx=x+padX+pipR+i*(pipR*2+gap); drawPip(cx,py,pipR, i<hits, col, col2); }
+  uctx.textBaseline='alphabetic';
+}
+function drawPip(cx,cy,r,on,col,col2){
+  if(on){ uctx.fillStyle='#ffffff'; uctx.beginPath(); uctx.arc(cx,cy,r,0,7); uctx.fill();
+    uctx.fillStyle='rgba(255,255,255,.55)'; uctx.beginPath(); uctx.arc(cx-r*0.3,cy-r*0.32,r*0.34,0,7); uctx.fill();
+    uctx.lineWidth=1.5; uctx.strokeStyle=col; uctx.beginPath(); uctx.arc(cx,cy,r,0,7); uctx.stroke(); }
+  else { uctx.fillStyle='rgba(255,255,255,.08)'; uctx.beginPath(); uctx.arc(cx,cy,r,0,7); uctx.fill();
+    uctx.lineWidth=1.4; uctx.strokeStyle='rgba(255,255,255,.28)'; uctx.beginPath(); uctx.arc(cx,cy,r,0,7); uctx.stroke(); }
+}
 
 /* ---------- loop ---------- */
 function loop(){ tick++;
@@ -605,25 +639,32 @@ function loop(){ tick++;
 
 /* ---------- flow ---------- */
 const S={name:'YOU'};
+const ovEl=document.getElementById('overlay'), taglineEl=document.getElementById('tagline'),
+  logoEl=document.getElementById('logo'), resTitleEl=document.getElementById('resTitle'),
+  resSubEl=document.getElementById('resSub'), startBtn=document.getElementById('startBtn'),
+  homeBtn=document.getElementById('homeBtn');
+function showHome(){ playing=false; over=false; resetInput();
+  ovEl.classList.remove('hide');
+  taglineEl.style.display=''; logoEl.style.display='';
+  resTitleEl.style.display='none'; resSubEl.style.display='none';
+  homeBtn.style.display='none'; startBtn.textContent='はじめる';
+}
 function startGame(){ actx(); fitCanvas(); buildWorld(); layoutUI();
   wind=(Math.random()*2-1)*1.4;
   P=[makePlayer(0),makePlayer(1)]; balls=[]; puffs=[]; over=false; playing=true;
   resetInput();
   ai={think:0,wantThrow:false,throwAng:0,chargeT:0,moveDir:0,moveT:0,dodgeT:0};
-  document.getElementById('overlay').classList.add('hide');
+  ovEl.classList.add('hide');
 }
-function endGame(winnerSide){ over=true; playing=false;
-  const ov=document.getElementById('overlay'); ov.classList.remove('hide');
-  document.getElementById('tagline').style.display='none';
-  document.getElementById('logo').style.display='none';
-  document.getElementById('howto').style.display='none';
-  const rt=document.getElementById('resTitle'), rs=document.getElementById('resSub');
-  rt.style.display='block'; rs.style.display='block';
-  if(winnerSide===0){ rt.textContent='YOU WIN'; rt.style.color='#5fd0ff'; rs.textContent='相手に '+WIN_HITS+' 回命中！'; sfxWin(); }
-  else { rt.textContent='YOU LOSE'; rt.style.color='#ff7a8e'; rs.textContent='やられた…もう一回？'; sfxLose(); }
-  document.getElementById('startBtn').textContent='REMATCH';
+function endGame(winnerSide){ over=true; playing=false; resetInput();
+  ovEl.classList.remove('hide');
+  taglineEl.style.display=''; logoEl.style.display='none';   // keep the tagline as a compact brand mark
+  resTitleEl.style.display='block'; resSubEl.style.display='block';
+  if(winnerSide===0){ resTitleEl.textContent='YOU WIN'; resTitleEl.style.color='#5fd0ff'; resSubEl.textContent='相手に '+WIN_HITS+' 回命中！'; sfxWin(); }
+  else { resTitleEl.textContent='YOU LOSE'; resTitleEl.style.color='#ff7a8e'; resSubEl.textContent='やられた…リベンジ？'; sfxLose(); }
+  startBtn.textContent='もう一度'; homeBtn.style.display='';
 }
-document.getElementById('startBtn').onclick=startGame;
+startBtn.onclick=startGame; homeBtn.onclick=showHome;
 
 function checkRotate(){ const portrait=window.innerHeight>window.innerWidth;
   document.getElementById('rotate').classList.toggle('show', portrait && 'ontouchstart' in window); }
