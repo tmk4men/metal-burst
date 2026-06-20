@@ -167,7 +167,7 @@ function stepBalls(){ for(let i=balls.length-1;i>=0;i--){ const b=balls[i];
 function hitUnit(o,b){ o.hp--; o.flash=1; const a=Math.atan2(o.y-b.y,o.x-b.x); o.vx+=Math.cos(a)*3.4; o.vy+=Math.sin(a)*3.4;
   shake=Math.max(shake,6); puff(o.x,o.y,'#ffffff',7); sfxHit();
   if(o.hp<=0){ o.dead=true; puff(o.x,o.y,o.team===0?'#bfe8ff':'#ffd2db',13); shake=Math.max(shake,9);
-    banner=(o.human?'やられた…':(o.team===1?'たおした！':'味方ダウン')); bannerT=50; checkRound(); } }
+    if(o.human){ banner='やられた…'; bannerT=50; } checkRound(); } }
 
 /* ---------- round / scoring (eliminate the enemy team) ---------- */
 let wins=[0,0], round=1, roundOver=false;
