@@ -8,12 +8,13 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@400;600;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{ --bg:#0a1426; --tx:#f2f8ff; --tx2:#a9bdd8; --c1:#7edcff; --c2:#ff7f93; --gold:#ffd76a;
     --glass:linear-gradient(180deg,rgba(15,29,52,.9),rgba(8,17,33,.94)); --line:rgba(126,220,255,.2); --rad:18px; }
   *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
-  html,body{ height:100%; background:var(--bg); overflow:hidden; font-family:"Exo 2",sans-serif; color:var(--tx2); }
+  html,body{ height:100%; background:var(--bg); overflow:hidden; font-family:"DotGothic16","Exo 2",sans-serif; color:var(--tx2); }
+  .px{ font-family:"Press Start 2P",monospace; }
   #stage{ position:fixed; inset:0; }
   #stage canvas{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
   canvas#cv{ z-index:1; touch-action:none; background:#0a1426; }
@@ -33,26 +34,26 @@
   #overlay.hide{ display:none; }
   .inner{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:16px; padding:30px 32px; margin:auto; width:min(520px,92vw);
     background:var(--glass); border:1px solid var(--line); border-radius:var(--rad); box-shadow:0 38px 100px -26px #000e, inset 0 1px 0 #ffffff18; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
-  .tagline{ font-family:"Orbitron"; font-weight:500; font-size:11px; letter-spacing:5px; color:#8fb6dd; }
-  #logo{ font-family:"Noto Sans JP",sans-serif; font-weight:900; font-size:clamp(32px,8.5vw,58px); letter-spacing:1px; color:var(--tx); line-height:1.06; text-shadow:0 0 34px rgba(255,127,147,.34),0 3px 0 #081223; }
+  .tagline{ font-family:"Press Start 2P",monospace; font-size:9px; letter-spacing:3px; color:#8fb6dd; }
+  #logo{ font-family:"DotGothic16",sans-serif; font-weight:400; font-size:clamp(30px,8vw,54px); letter-spacing:1px; color:var(--tx); line-height:1.12; text-shadow:0 0 34px rgba(255,127,147,.34),3px 3px 0 #081223; }
   #logo .b{ color:var(--c2); }
-  #logo .on{ display:block; font-family:"Orbitron"; font-weight:700; font-size:clamp(11px,3vw,15px); letter-spacing:7px; color:var(--c2); margin-top:10px; }
-  #resTitle{ font-family:"Orbitron"; font-weight:900; font-size:clamp(28px,7vw,48px); letter-spacing:2px; display:none; text-shadow:0 0 28px currentColor,0 3px 0 #06101f; }
-  #resSub{ font-size:15px; color:var(--tx2); display:none; }
-  .best{ font-family:"Orbitron"; font-weight:700; font-size:14px; color:var(--gold); }
+  #logo .on{ display:block; font-family:"Press Start 2P",monospace; font-size:clamp(10px,2.6vw,13px); letter-spacing:4px; color:var(--c2); margin-top:12px; }
+  #resTitle{ font-family:"DotGothic16",sans-serif; font-size:clamp(30px,7.5vw,50px); letter-spacing:2px; display:none; text-shadow:0 0 28px currentColor,2px 2px 0 #06101f; }
+  #resSub{ font-size:14px; color:var(--tx2); display:none; }
+  .best{ font-family:"DotGothic16",sans-serif; font-size:15px; color:var(--gold); }
   .howlist{ display:flex; flex-direction:column; gap:9px; width:100%; max-width:380px; }
   .howrow{ display:flex; align-items:center; gap:11px; font-size:13.5px; color:var(--tx2); text-align:left; line-height:1.4; }
   .howrow b{ color:var(--tx); }
   .howrow .ic{ flex:0 0 34px; height:34px; border-radius:10px; display:grid; place-items:center; background:rgba(126,220,255,.08); border:1px solid rgba(126,220,255,.16); }
   .howrow .ic svg{ width:19px; height:19px; }
   .seg{ display:inline-flex; background:rgba(126,220,255,.06); border:1px solid rgba(126,220,255,.18); border-radius:12px; padding:3px; gap:2px; }
-  .seg button{ font-family:"Exo 2"; font-weight:700; font-size:13px; color:#a9bdd8; background:none; border:none; border-radius:9px; padding:8px 17px; cursor:pointer; transition:background .12s,color .12s; }
+  .seg button{ font-family:"DotGothic16",sans-serif; font-weight:400; font-size:14px; color:#a9bdd8; background:none; border:none; border-radius:9px; padding:8px 17px; cursor:pointer; transition:background .12s,color .12s; }
   .seg button.on{ background:linear-gradient(180deg,#ff9fb0,#e0506a); color:#1a0810; box-shadow:0 6px 16px -8px rgba(224,80,106,.8); }
   .btnrow{ display:flex; gap:11px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
-  .start{ font-family:"Orbitron"; font-weight:700; letter-spacing:2px; font-size:18px; color:#1a0810; cursor:pointer; padding:16px 46px; border:none; border-radius:14px;
+  .start{ font-family:"DotGothic16",sans-serif; font-weight:400; letter-spacing:2px; font-size:19px; color:#1a0810; cursor:pointer; padding:16px 46px; border:none; border-radius:14px;
     background:linear-gradient(180deg,#ffb0c0,#e85d77); box-shadow:0 16px 32px -10px rgba(232,93,119,.72), inset 0 1px 0 #ffffffb8; transition:transform .06s,filter .12s; }
   .start:hover{ filter:brightness(1.06); } .start:active{ transform:translateY(2px); }
-  .ghost{ font-family:"Orbitron"; font-weight:700; letter-spacing:2px; font-size:14px; cursor:pointer; color:#cfe2f7; padding:15px 24px; border-radius:14px;
+  .ghost{ font-family:"DotGothic16",sans-serif; font-weight:400; letter-spacing:2px; font-size:15px; cursor:pointer; color:#cfe2f7; padding:15px 24px; border-radius:14px;
     background:rgba(126,220,255,.07); border:1px solid rgba(126,220,255,.22); transition:transform .06s,background .12s; }
   .ghost:hover{ background:rgba(126,220,255,.13); } .ghost:active{ transform:translateY(2px); }
   .orow{ display:flex; align-items:center; gap:10px; }
@@ -155,7 +156,8 @@ function spawnVolley(){ const side=Math.random()<0.5?0:(Math.random()<0.5?1:2); 
   else if(side===1){ oy=AY0+Math.random()*(AY1-AY0)*0.85; ox=AX0-off; mx=AX0+14; my=oy; }
   else { oy=AY0+Math.random()*(AY1-AY0)*0.85; ox=AX1+off; mx=AX1-14; my=oy; }
   const kind=Math.random()<0.34?'ring':(Math.random()<0.5?'fan':'rain');
-  const n = kind==='ring' ? (8+Math.min(8,level)) : (3+Math.min(4,Math.floor(level/1.5)));
+  let n = kind==='ring' ? (8+Math.min(8,level)) : (3+Math.min(4,Math.floor(level/1.5)));
+  if(surviveT<480) n=Math.min(n, kind==='ring'?6:3);   // gentle start
   const sp = (0.85+level*0.08)*(DIFF[diff]||DIFF[1]).sp;   // slow, floaty drift
   const col = VCOL[(Math.random()*3|0)];
   warns.push({ox,oy,mx,my,kind,n,sp,col,t:WARN_T,ang:Math.atan2(player.y-oy,player.x-ox)}); sfxWarn(); }
@@ -186,7 +188,7 @@ function step(){ surviveT++; const D=DIFF[diff]||DIFF[1];
   player.x=Math.max(AX0+PR,Math.min(AX1-PR,player.x)); player.y=Math.max(AY0+PR,Math.min(AY1-PR,player.y));
   if(player.invuln>0)player.invuln--;
   // schedule volleys
-  if(--volleyT<=0){ if(bullets.length<240) spawnVolley(); volleyT=Math.max(30,Math.round((66-level*4)*D.gap)); }
+  if(--volleyT<=0){ if(bullets.length<240) spawnVolley(); const early=surviveT<780?(2.0-surviveT/780):1; volleyT=Math.max(30,Math.round((66-level*4)*D.gap*early)); }   // sparse first ~13s, then ramp
   for(let i=warns.length-1;i>=0;i--){ if(--warns[i].t<=0){ emitVolley(warns[i]); warns.splice(i,1); } }
   // bullets — slow base velocity + gentle perpendicular sway = ふわふわ
   for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i]; const pa=Math.atan2(b.vy,b.vx)+1.5708, sway=Math.sin(tick*0.05+b.ph)*0.34;
@@ -253,8 +255,8 @@ function drawPlayer(){ const p=player; ctx.save(); ctx.translate(p.x,p.y); const
 function drawUI(){ uctx.setTransform(DPR,0,0,DPR,0,0); uctx.clearRect(0,0,W,H); uctx.lineCap='round'; uctx.lineJoin='round';
   if(playing||dead){ timeHUD(); livesHUD(); if(playing){ drawPad(); drawSlowBtn(); } if(bannerT>0)drawBanner(); } }
 function timeHUD(){ const t=(surviveT/60).toFixed(1); uctx.textAlign='center'; uctx.textBaseline='top';
-  uctx.font='900 38px Orbitron,sans-serif'; uctx.fillStyle='#f6fbff'; uctx.shadowColor='rgba(0,0,0,.9)'; uctx.shadowBlur=8; uctx.fillText(t,W/2,12); uctx.shadowBlur=0;
-  uctx.font='700 11px Orbitron,sans-serif'; uctx.fillStyle='rgba(207,226,247,.72)'; uctx.fillText('SEC   ・   BEST '+save.best.toFixed(1),W/2,54); uctx.textBaseline='alphabetic'; }
+  uctx.font='30px "Press Start 2P",monospace'; uctx.fillStyle='#f6fbff'; uctx.shadowColor='rgba(0,0,0,.9)'; uctx.shadowBlur=8; uctx.fillText(t,W/2,14); uctx.shadowBlur=0;
+  uctx.font='9px "Press Start 2P",monospace'; uctx.fillStyle='rgba(207,226,247,.72)'; uctx.fillText('SEC  BEST '+save.best.toFixed(1),W/2,56); uctx.textBaseline='alphabetic'; }
 function livesHUD(){ for(let i=0;i<LIVES;i++){ const x=24+i*26, y=30, on=i<lives; uctx.save(); uctx.translate(x,y);
   uctx.globalAlpha=on?1:0.28; uctx.fillStyle=on?'#46546f':'#2a3242'; uctx.beginPath(); uctx.arc(0,0,8,0,7); uctx.fill(); uctx.lineWidth=1.6; uctx.strokeStyle=on?'#7edcff':'#445'; uctx.stroke();
   uctx.strokeStyle=on?'#b9a98f':'#445'; uctx.lineWidth=1.6; uctx.beginPath(); uctx.moveTo(2,-7); uctx.lineTo(5,-12); uctx.stroke(); if(on){ uctx.fillStyle='#ffd76a'; uctx.beginPath(); uctx.arc(5,-12,2,0,7); uctx.fill(); }
@@ -265,15 +267,15 @@ function drawPad(){ const R=PADR(); if(pad.a){ const x=pad.bx,y=pad.by; uctx.fil
     uctx.fillStyle='#06101f'; uctx.beginPath(); uctx.arc(x+dx,y+dy,5,0,7); uctx.fill();
   } else { const x=PADR()+24,y=H-PADR()-22; uctx.fillStyle='rgba(255,255,255,.05)'; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.fill();
     uctx.strokeStyle='rgba(255,255,255,.2)'; uctx.lineWidth=2; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.stroke();
-    uctx.globalAlpha=.5; uctx.fillStyle='#cfe2f7'; uctx.font='700 12px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.textBaseline='middle'; uctx.fillText('MOVE',x,y); uctx.textBaseline='alphabetic'; uctx.globalAlpha=1; } }
+    uctx.globalAlpha=.5; uctx.fillStyle='#cfe2f7'; uctx.font='10px "Press Start 2P",monospace'; uctx.textAlign='center'; uctx.textBaseline='middle'; uctx.fillText('MOVE',x,y); uctx.textBaseline='alphabetic'; uctx.globalAlpha=1; } }
 function drawSlowBtn(){ const x=slowBtn.x,y=slowBtn.y,R=slowBtn.r;
   uctx.fillStyle=slowBtn.held?'rgba(255,47,95,.28)':'rgba(255,255,255,.07)'; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.fill();
   uctx.lineWidth=2.5; uctx.strokeStyle=slowBtn.held?'#ff5a7a':'rgba(255,255,255,.34)'; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.stroke();
   const ic=slowBtn.held?'#ff8ea3':'#eaf6ff'; uctx.fillStyle=ic; uctx.beginPath(); uctx.arc(x,y-2,R*0.16,0,7); uctx.fill();
   uctx.strokeStyle=ic; uctx.lineWidth=2; uctx.beginPath(); uctx.arc(x,y-2,R*0.34,0,7); uctx.stroke();
-  uctx.fillStyle=slowBtn.held?'#ffd2db':'#cfe2f7'; uctx.font='700 12px Orbitron,sans-serif'; uctx.textAlign='center'; uctx.fillText('SLOW',x,y+R*0.62); }
+  uctx.fillStyle=slowBtn.held?'#ffd2db':'#cfe2f7'; uctx.font='9px "Press Start 2P",monospace'; uctx.textAlign='center'; uctx.fillText('SLOW',x,y+R*0.62); }
 function drawBanner(){ uctx.save(); uctx.globalAlpha=Math.min(1,bannerT/14); uctx.textAlign='center'; uctx.textBaseline='middle';
-  const fs=Math.round(Math.min(W,H)*0.05); uctx.font='900 '+fs+'px "Exo 2",sans-serif';
+  const fs=Math.round(Math.min(W,H)*0.045); uctx.font=fs+'px "DotGothic16",sans-serif';
   const tw=uctx.measureText(banner).width,bw=tw+50,bh=fs+22,cx=W/2,cy=H*0.2,bx=cx-bw/2,by=cy-bh/2;
   uctx.fillStyle='rgba(7,16,31,.86)'; uctx.shadowColor='#ffd76a'; uctx.shadowBlur=12; rr(uctx,bx,by,bw,bh,14); uctx.fill(); uctx.shadowBlur=0;
   uctx.lineWidth=2.5; uctx.strokeStyle='#ffd76a'; rr(uctx,bx,by,bw,bh,14); uctx.stroke(); uctx.fillStyle='#ffd76a'; uctx.fillText(banner,cx,cy+1); uctx.textBaseline='alphabetic'; uctx.restore(); }
@@ -303,6 +305,7 @@ function refreshMute(){ muteBtn.innerHTML=muted?ICON_OFF:ICON_ON; muteBtn.style.
 muteBtn.onclick=()=>{ actx(); setMuted(!muted); refreshMute(); }; refreshMute();
 function checkRotate(){ document.getElementById('rotate').classList.toggle('show', window.innerWidth>window.innerHeight && 'ontouchstart' in window); }
 window.addEventListener('orientationchange',()=>setTimeout(()=>{fitCanvas();layoutUI();checkRotate();},200));
+if(document.fonts&&document.fonts.load){ document.fonts.load('30px "Press Start 2P"'); document.fonts.load('20px "DotGothic16"'); }
 fitCanvas(); layoutUI(); renderOpts(); checkRotate(); loop();
 </script>
 </body>
