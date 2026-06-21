@@ -140,7 +140,7 @@ function setMuted(m){ muted=m; try{localStorage.setItem('bp_mute',m?'1':'0');}ca
 
 /* ---------- stage (top-down ellipse platform) ---------- */
 let SX=0,SY=0,RX=0,RY=0,bgdots=[];
-function computeStage(){ SX=W/2; SY=Math.round(H*0.43); RX=Math.min(W*0.44,420); RY=Math.min(H*0.30,360);
+function computeStage(){ SX=W/2; SY=Math.round(H*0.44); RX=Math.min(W*0.46,460); RY=Math.min(H*0.34,420);
   bgdots=[]; for(let i=0;i<60;i++){ const a=Math.random()*7,r=Math.sqrt(Math.random()); bgdots.push({x:SX+Math.cos(a)*r*RX*0.92,y:SY+Math.sin(a)*r*RY*0.92,s:1+Math.random()*2}); } }
 function norm(x,y){ const dx=(x-SX)/RX, dy=(y-SY)/RY; return dx*dx+dy*dy; }   // <=1 on stage
 
@@ -203,7 +203,8 @@ function stepP(p,mvx,mvy){ if(p.respawn>0){ p.respawn--; if(p.respawn<=0)resetP(
 function ringOut(p){ const scorer=1-p.side; score[scorer]++; sfxOut(); shake=Math.max(shake,9);
   banner=(scorer===0?'おとした！':'おちた…'); bannerT=70;
   if(score[scorer]>=WIN_PTS){ endGame(scorer); return; }
-  p.respawn=60; p.x=spawnPt(p.side).x; p.y=spawnPt(p.side).y; p.vx=0; p.vy=0; p.dmg=0; p.fall=0; }
+  for(const u of P) resetP(u);   // both fighters back to their starting positions for the next point
+  blasts=[]; intro=28; }
 function controlHuman(){ if(!me)return; let mvx=0,mvy=0; if(pad.a){ const dx=pad.tx-pad.bx,dy=pad.ty-pad.by,R=PADR(),len=Math.hypot(dx,dy);
     if(len>R*0.18){ mvx=Math.max(-1,Math.min(1,dx/R)); mvy=Math.max(-1,Math.min(1,dy/R)); } }
   if(keys['ArrowLeft']||keys['a'])mvx=-1; if(keys['ArrowRight']||keys['d'])mvx=1; if(keys['ArrowUp']||keys['w'])mvy=-1; if(keys['ArrowDown']||keys['s'])mvy=1;
