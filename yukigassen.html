@@ -19,6 +19,13 @@
 <meta name="twitter:title" content="ゆきがっせん — トップダウン・チーム雪合戦">
 <meta name="twitter:description" content="川ごしに雪玉を当て合うチーム雪合戦。ブラウザで今すぐ・無料。">
 <meta name="twitter:image" content="https://tmk4men.github.io/metal-burst/yukigassen-og.png">
+<link rel="manifest" href="yukigassen.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ゆきがっせん">
+<link rel="apple-touch-icon" href="yk-apple-touch.png">
+<link rel="icon" type="image/png" href="yk-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@400;600;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
@@ -66,6 +73,21 @@
   #muteBtn{ position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px; z-index:50; width:40px; height:40px; display:grid; place-items:center;
     border-radius:12px; cursor:pointer; color:#cfe2f7; background:rgba(9,17,32,.66); border:1px solid rgba(126,220,255,.24); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
   #muteBtn svg{ width:20px; height:20px; }
+  .coinbar{ display:inline-flex; align-items:center; gap:6px; font-family:"Orbitron"; font-weight:700; font-size:15px; color:#ffd76a; padding:5px 13px; border-radius:999px; background:rgba(255,200,90,.08); border:1px solid rgba(255,200,90,.22); }
+  .coinbar svg{ width:16px; height:16px; }
+  #opts{ display:flex; flex-direction:column; gap:11px; align-items:center; width:100%; }
+  .orow{ display:flex; align-items:center; gap:10px; }
+  .olab{ font-size:12px; color:#9fb4d0; min-width:50px; text-align:right; }
+  .seg{ display:inline-flex; background:rgba(126,220,255,.06); border:1px solid rgba(126,220,255,.18); border-radius:11px; padding:3px; gap:2px; }
+  .seg button{ font-family:"Exo 2"; font-weight:700; font-size:13px; color:#a9bdd8; background:none; border:none; border-radius:8px; padding:7px 15px; cursor:pointer; }
+  .seg button.on{ background:linear-gradient(180deg,#7edcff,#3aa9e6); color:#04121f; }
+  .skins{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:310px; }
+  .skinchip{ width:56px; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:6px 4px; border-radius:12px; border:1px solid transparent; }
+  .skinchip.on{ border-color:#7edcff; background:rgba(126,220,255,.1); }
+  .skinchip .dot{ width:30px; height:30px; border-radius:50%; }
+  .skinchip .nm{ font-size:10px; color:#cfe2f7; }
+  .skinchip .pr{ font-size:9px; color:#ffd76a; font-weight:700; font-family:"Orbitron"; }
+  .skinchip.locked .dot{ filter:grayscale(.55) brightness(.7); }
 </style>
 </head>
 <body>
@@ -76,6 +98,12 @@
   <div id="logo">ゆき<span class="b">がっせん</span><span class="on">SNOW FRIENDS</span></div>
   <div id="resTitle" class="orb"></div>
   <div id="resSub"></div>
+  <div id="opts">
+    <div class="coinbar" id="coinbar"></div>
+    <div class="orow"><span class="olab">つよさ</span><div class="seg" id="diffSeg"></div></div>
+    <div class="orow"><span class="olab">にんずう</span><div class="seg" id="teamSeg"></div></div>
+    <div class="skins" id="skins"></div>
+  </div>
   <div class="btnrow"><button class="start orb" id="startBtn">はじめる</button><button class="ghost orb" id="homeBtn" style="display:none">ホーム</button></div>
 </div></div>
 
@@ -91,11 +119,36 @@ function fitCanvas(){ VW=Math.max(300,Math.floor(window.innerWidth)); VH=Math.ma
 window.addEventListener('resize',()=>{ fitCanvas(); if(!playing)buildArena(); layoutUI(); checkRotate(); });
 
 /* ---------- constants ---------- */
-const TEAM=2, ROUND_WIN=3, HP=2, AMMO_MAX=3, RELOAD=80, THROW_CD=16, REVIVE=240;   // REVIVE: frames a teammate must stand by to revive (4s)
+let TEAM=2; const ROUND_WIN=3, HP=2, AMMO_MAX=3, RELOAD=80, THROW_CD=16, REVIVE=240;
 const BALL_SPD=7.2, BALL_R=6, HIT_R=16, PR=14, MOVE=1.9;
-function riverBand(){ const w=Math.max(52,FH*0.095); return {t:FH/2-w/2, b:FH/2+w/2, w}; }   // no-cross river down the middle
-const COL=[{body:'#7edcff',dark:'#2c93cf',belly:'#dff5ff',name:'あなた'},{body:'#ff8aa0',dark:'#d9536e',belly:'#ffe0e7',name:'てき'}];
+function riverBand(){ const w=Math.max(46,FH*(curMap?curMap.riv:0.095)); return {t:FH/2-w/2, b:FH/2+w/2, w}; }
+let COL=[{body:'#7edcff',dark:'#2c93cf',belly:'#dff5ff'},{body:'#ff8aa0',dark:'#d9536e',belly:'#ffe0e7'}];
 const PADR=()=>Math.max(52,Math.min(W,H)*0.142);
+
+/* ---------- save / options / content ---------- */
+const SAVE_KEY='yk_save_v1';
+const SKINS=[
+  {id:'aqua', name:'アクア',   body:'#7edcff',dark:'#2c93cf',belly:'#dff5ff', cost:0},
+  {id:'leaf', name:'リーフ',   body:'#8ee6a8',dark:'#2f9c5e',belly:'#e1fce9', cost:120},
+  {id:'sun',  name:'サン',     body:'#ffd76a',dark:'#cf9a2a',belly:'#fff3cf', cost:160},
+  {id:'grape',name:'グレープ', body:'#c79cff',dark:'#7d4fd0',belly:'#efe4ff', cost:220},
+  {id:'coral',name:'コーラル', body:'#ff9f7a',dark:'#d96a44',belly:'#ffe6d8', cost:200},
+];
+const DIFF=[ {name:'やさしい',err:0.22,rmin:32,rvar:46,dodge:0.25,skip:0.4},
+             {name:'ふつう',  err:0.12,rmin:18,rvar:38,dodge:0.5, skip:0.18},
+             {name:'つよい',  err:0.05,rmin:10,rvar:24,dodge:0.78,skip:0.05} ];
+const MAPS=[
+  {name:'ひろば',  riv:0.09,  f:[[0.32,0.26,0.30],[0.74,0.26,0.22]]},
+  {name:'なかじま',riv:0.085, f:[[0.5,0.30,0.34],[0.22,0.14,0.18],[0.78,0.14,0.18]]},
+  {name:'ふたまた',riv:0.10,  f:[[0.30,0.30,0.22],[0.70,0.30,0.22],[0.5,0.12,0.26]]},
+  {name:'ひろい',  riv:0.125, f:[[0.5,0.24,0.40]]},
+];
+let curMap=MAPS[0];
+const DEF_SAVE={coins:0, skin:'aqua', owned:['aqua'], diff:1, team:2};
+function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s&&s.owned) return Object.assign({},DEF_SAVE,s); }catch(e){} return JSON.parse(JSON.stringify(DEF_SAVE)); }
+let save=loadSave();
+function persist(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(save)); }catch(e){} }
+function skinById(id){ return SKINS.find(s=>s.id===id)||SKINS[0]; }
 
 /* ---------- audio (SFX + light BGM, routed through a mutable master) ---------- */
 let AC=null; const actx=()=>{ if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}return AC; };
@@ -133,13 +186,13 @@ let forts=[], snowflakes=[], bumps=[];
 let bases=[{x:0,y:0},{x:0,y:0}];          // team home (spawn) points
 function inFort(x,y,pad){ for(const f of forts){ if(x>f.x-pad&&x<f.x+f.w+pad&&y>f.y-pad&&y<f.y+f.h+pad)return f; } return null; }
 function buildArena(){
-  const mB=Math.max(40,FH*0.05), mT=Math.max(104,FH*0.12);   // top margin so the enemy spawn clears the score bar
+  curMap=MAPS[(round-1)%MAPS.length];                          // map varies per round
+  const mB=Math.max(40,FH*0.05), mT=Math.max(104,FH*0.12);
   bases=[{x:W/2,y:FH-mB-14},{x:W/2,y:mT+14}];   // team0 (you) = bottom, team1 (enemy) = top
-  // a few cover walls per half (kept low — river is the divider)
+  // cover walls mirrored top/bottom per the current map
   forts=[]; const t=Math.max(18,Math.min(W,H)*0.02);
   const add=(x,y,w,h)=>forts.push({x:x-w/2,y:y-h/2,w,h});
-  [-1,1].forEach(s=>{ const yy=FH/2 + s*FH*0.26;
-    add(W*0.32, yy, W*0.30, t); add(W*0.74, yy, W*0.22, t); });
+  [-1,1].forEach(s=>{ for(const [fx,fy,fw] of curMap.f){ add(W*fx, FH/2+s*FH*fy, W*fw, t); } });
   // decorations (within the field, away from the river)
   snowflakes=[]; for(let i=0;i<60;i++) snowflakes.push({x:Math.random()*W,y:Math.random()*FH,r:0.6+Math.random()*1.6,a:Math.random()*7});
   bumps=[]; for(let i=0;i<30;i++) bumps.push({x:Math.random()*W,y:Math.random()*FH,r:6+Math.random()*16});
@@ -192,9 +245,10 @@ function hitUnit(o,b){ o.hp--; o.flash=1; const a=Math.atan2(o.y-b.y,o.x-b.x); o
     checkRound(); } }
 
 /* ---------- round / scoring (eliminate the enemy team) ---------- */
-let wins=[0,0], round=1, roundOver=false;
+let wins=[0,0], round=1, roundOver=false, runCoins=0;
 function checkRound(){ if(roundOver)return; const aB=units.some(u=>u.team===0&&!u.dead), aR=units.some(u=>u.team===1&&!u.dead);
-  if(aB&&aR)return; roundOver=true; const w=aB?0:1; wins[w]++; sfxCap();
+  if(aB&&aR)return; roundOver=true; const w=aB?0:1; wins[w]++;
+  if(w===0) runCoins+=10; note(w===0?784:294,0.2,'triangle',0.12);
   banner=(w===0?'ラウンド WON!':'ラウンド LOST'); bannerT=90;
   if(wins[w]>=ROUND_WIN){ setTimeout(()=>endGame(w),1100); } else { setTimeout(nextRound,1600); } }
 function stepRevive(){ for(const d of units){ if(!d.dead)continue;
@@ -221,18 +275,25 @@ function controlHuman(){ if(!me||me.dead)return;
   if(keys['ArrowLeft']||keys['a'])mx=-1; if(keys['ArrowRight']||keys['d'])mx=1; if(keys['ArrowUp']||keys['w'])my=-1; if(keys['ArrowDown']||keys['s'])my=1;
   const l=Math.hypot(mx,my); if(l>1){mx/=l;my/=l;} moveUnit(me,mx,my);
 }
-function controlAI(u){ if(u.dead)return;
+function controlAI(u){ if(u.dead)return; const D=DIFF[save.diff]||DIFF[1];
   if(u.ammo<AMMO_MAX){ u.regen++; if(u.regen>=RELOAD){ u.ammo=AMMO_MAX; u.regen=0; } }   // COM repacks after a pause
   const rb=riverBand(), e=nearestEnemy(u);
-  // hold a line near the river bank on own side; spread out; defenders sit back a touch
-  const bank = u.team===0 ? rb.b+PR+FH*0.06 : rb.t-PR-FH*0.06;
-  let ty=bank + (u.role==='defend'?(u.team===0?FH*0.14:-FH*0.14):0);
-  let tx=(e?e.x:W/2) + Math.sin(tick*0.025+u.idx*2)*W*0.13;
-  for(const b of balls){ if(b.team===u.team)continue; const dx=u.x-b.x,dy=u.y-b.y; if(Math.hypot(dx,dy)<95 && (dx*b.vx+dy*b.vy)>0){ tx=u.x+(b.vx>=0?-1:1)*70; } } // dodge
+  // rescue: go revive the nearest downed teammate if I'm the closest living ally (ふつう+)
+  let goRev=null;
+  if(save.diff>=1){ let dm=null,dd=1e9; for(const o of units){ if(o.dead&&o.team===u.team){ const d=Math.hypot(o.x-u.x,o.y-u.y); if(d<dd){dd=d;dm=o;} } }
+    if(dm){ let closest=true; for(const a of units){ if(a===u||a.dead||a.team!==u.team)continue; if(Math.hypot(a.x-dm.x,a.y-dm.y)<dd){closest=false;break;} } if(closest)goRev=dm; } }
+  let tx,ty;
+  if(goRev){ tx=goRev.x; ty=goRev.y; }
+  else { const bank=u.team===0?rb.b+PR+FH*0.06:rb.t-PR-FH*0.06;
+    ty=bank+(u.role==='defend'?(u.team===0?FH*0.14:-FH*0.14):0);
+    tx=(e?e.x:W/2)+Math.sin(tick*0.025+u.idx*2)*W*0.13; }
+  for(const b of balls){ if(b.team===u.team)continue; const dx=u.x-b.x,dy=u.y-b.y; if(Math.hypot(dx,dy)<95 && (dx*b.vx+dy*b.vy)>0 && Math.random()<D.dodge){ tx=u.x+(b.vx>=0?-1:1)*70; } } // dodge (scaled)
   let ax=tx-u.x, ay=ty-u.y; const d=Math.hypot(ax,ay)||1; ax/=d; ay/=d; if(d<10){ax=0;ay=0;}
   if(inFort(u.x+ax*PR*2,u.y+ay*PR*2,PR*0.6)){ const t=ax; ax=-ay; ay=t; }
   moveUnit(u,ax,ay);
-  if(e && u.cd<=0 && u.ammo>0 && losClear(u.x,u.y,e.x,e.y)){ if(--u.aiThrow<=0){ throwBall(u,Math.atan2(e.y-u.y,e.x-u.x)+(Math.random()*2-1)*0.1); u.aiThrow=20+(Math.random()*34|0); } }
+  if(e && u.cd<=0 && u.ammo>0 && !goRev && losClear(u.x,u.y,e.x,e.y)){ if(--u.aiThrow<=0){
+    if(Math.random()>=D.skip) throwBall(u,Math.atan2(e.y-u.y,e.x-u.x)+(Math.random()*2-1)*D.err);
+    u.aiThrow=D.rmin+(Math.random()*D.rvar|0); } }
 }
 
 /* ---------- particles ---------- */
@@ -428,19 +489,32 @@ function loop(){ tick++; if(bannerT>0)bannerT--;
 }
 const ovEl=document.getElementById('overlay'),logoEl=document.getElementById('logo'),
   resTitleEl=document.getElementById('resTitle'),resSubEl=document.getElementById('resSub'),
-  startBtn=document.getElementById('startBtn'),homeBtn=document.getElementById('homeBtn');
-function showHome(){ playing=false; stopBGM(); ovEl.classList.remove('hide'); logoEl.style.display='';
-  resTitleEl.style.display='none'; resSubEl.style.display='none'; homeBtn.style.display='none'; startBtn.textContent='はじめる'; }
-function startGame(){ actx(); fitCanvas(); buildArena(); layoutUI(); wins=[0,0]; round=1; playing=true; ovEl.classList.add('hide'); startBGM(); startRound(); }
-function startRound(){ resetUnits(); balls=[]; puffs=[]; roundOver=false; pad.move.a=pad.aim.a=false; pad.move.id=pad.aim.id=-1; packBtn.held=false; packBtn.id=-1;
+  startBtn=document.getElementById('startBtn'),homeBtn=document.getElementById('homeBtn'),
+  optsEl=document.getElementById('opts'),coinbarEl=document.getElementById('coinbar'),
+  diffSegEl=document.getElementById('diffSeg'),teamSegEl=document.getElementById('teamSeg'),skinsEl=document.getElementById('skins');
+const COIN_SVG='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#ffd45e" stroke="#b8801e" stroke-width="1.6"/><path d="M12 7.5v9M9.8 9.6h3a1.6 1.6 0 0 1 0 3.2h-2.2a1.6 1.6 0 0 0 0 3.2h3" stroke="#8a5e14" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+function renderOpts(){ coinbarEl.innerHTML=COIN_SVG+'<span>'+save.coins+'</span>';
+  diffSegEl.innerHTML=''; DIFF.forEach((d,i)=>{ const b=document.createElement('button'); b.textContent=d.name; if(i===save.diff)b.className='on'; b.onclick=()=>{save.diff=i;persist();renderOpts();}; diffSegEl.appendChild(b); });
+  teamSegEl.innerHTML=''; [1,2,3].forEach(n=>{ const b=document.createElement('button'); b.textContent=n+'v'+n; if(n===save.team)b.className='on'; b.onclick=()=>{save.team=n;persist();renderOpts();}; teamSegEl.appendChild(b); });
+  skinsEl.innerHTML=''; SKINS.forEach(s=>{ const owned=save.owned.includes(s.id), sel=save.skin===s.id; const c=document.createElement('div'); c.className='skinchip'+(sel?' on':'')+(owned?'':' locked');
+    c.innerHTML='<div class="dot" style="background:'+s.body+';border:2px solid '+s.dark+'"></div><div class="nm">'+s.name+'</div>'+(owned?'':'<div class="pr">'+s.cost+'</div>');
+    c.onclick=()=>{ if(owned){ save.skin=s.id; } else if(save.coins>=s.cost){ save.coins-=s.cost; save.owned.push(s.id); save.skin=s.id; } persist(); renderOpts(); };
+    skinsEl.appendChild(c); }); }
+function showHome(){ playing=false; stopBGM(); ovEl.classList.remove('hide'); logoEl.style.display=''; optsEl.style.display='flex';
+  resTitleEl.style.display='none'; resSubEl.style.display='none'; homeBtn.style.display='none'; startBtn.textContent='はじめる'; renderOpts(); }
+function applySettings(){ TEAM=save.team; const sk=skinById(save.skin); COL[0]={body:sk.body,dark:sk.dark,belly:sk.belly}; }
+function startGame(){ actx(); fitCanvas(); applySettings(); layoutUI(); wins=[0,0]; round=1; runCoins=0; playing=true; ovEl.classList.add('hide'); optsEl.style.display='none'; startBGM(); startRound(); }
+function startRound(){ buildArena(); resetUnits(); balls=[]; puffs=[]; roundOver=false; pad.move.a=pad.aim.a=false; pad.move.id=pad.aim.id=-1; packBtn.held=false; packBtn.id=-1;
   banner='ROUND '+round; bannerT=70; intro=55; sfxRound(); }
 function nextRound(){ round++; startRound(); }
-function endGame(team){ playing=false; stopBGM(); ovEl.classList.remove('hide'); logoEl.style.display='none';
+function endGame(team){ playing=false; stopBGM(); if(team===0)runCoins+=50; save.coins+=runCoins; persist();
+  ovEl.classList.remove('hide'); logoEl.style.display='none'; optsEl.style.display='none';
   resTitleEl.style.display='block'; resSubEl.style.display='block';
-  if(team===0){ resTitleEl.textContent='YOU WIN'; resTitleEl.style.color='#7edcff'; resSubEl.textContent='ラウンド '+wins[0]+' - '+wins[1]+' で勝利！'; sfxWin(); }
-  else { resTitleEl.textContent='YOU LOSE'; resTitleEl.style.color='#ff7f93'; resSubEl.textContent='ラウンド '+wins[0]+' - '+wins[1]+' …リベンジ？'; sfxLose(); }
+  const tail='　+'+runCoins+' コイン';
+  if(team===0){ resTitleEl.textContent='YOU WIN'; resTitleEl.style.color='#7edcff'; resSubEl.textContent='ラウンド '+wins[0]+' - '+wins[1]+tail; sfxWin(); }
+  else { resTitleEl.textContent='YOU LOSE'; resTitleEl.style.color='#ff7f93'; resSubEl.textContent='ラウンド '+wins[0]+' - '+wins[1]+tail; sfxLose(); }
   startBtn.textContent='もう一度'; homeBtn.style.display=''; }
-startBtn.onclick=startGame; homeBtn.onclick=showHome;
+startBtn.onclick=startGame; homeBtn.onclick=showHome; renderOpts();
 const muteBtn=document.getElementById('muteBtn');
 const ICON_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>';
 const ICON_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg>';
