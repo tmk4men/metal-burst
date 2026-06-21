@@ -102,11 +102,13 @@
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 const uic=document.getElementById('ui'),uctx=uic.getContext('2d');
+const bbf=document.createElement('canvas'),bbx=bbf.getContext('2d'); const PXB=4; let BBW=120,BBH=220;   // low-res background buffer (pixel-art)
 let W=420,H=820,DPR=1,SAT=0;
 const _sap=document.createElement('div'); _sap.style.cssText='position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;'; document.body.appendChild(_sap);
 function fitCanvas(){ W=Math.max(300,Math.floor(window.innerWidth)); H=Math.max(360,Math.floor(window.innerHeight));
   DPR=Math.min(window.devicePixelRatio||1,2); SAT=_sap.offsetHeight||0;
-  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); uic.width=Math.round(W*DPR); uic.height=Math.round(H*DPR); computeArena(); }
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); uic.width=Math.round(W*DPR); uic.height=Math.round(H*DPR);
+  BBW=Math.max(1,Math.ceil(W/PXB)); BBH=Math.max(1,Math.ceil(H/PXB)); bbf.width=BBW; bbf.height=BBH; computeArena(); }
 window.addEventListener('resize',()=>{ fitCanvas(); checkRotate(); });
 
 /* ---------- constants ---------- */
@@ -183,10 +185,13 @@ function substep(dt){ ball.vy+=GRAV*dt; const sp=Math.hypot(ball.vx,ball.vy); if
   if(ball.x<AX0+BALL_R){ ball.x=AX0+BALL_R; ball.vx=Math.abs(ball.vx)*WALL_REST; }
   if(ball.x>AX1-BALL_R){ ball.x=AX1-BALL_R; ball.vx=-Math.abs(ball.vx)*WALL_REST; }
   let bounced=false; for(const ln of lines){ if(bounceLine(ln))bounced=true; }
-  for(const z of hazards){ if(z.type!=='floor')continue; if(ball.x>z.gx-z.gw/2 && ball.x<z.gx+z.gw/2)continue;   // gap = pass through
-    if(Math.abs(ball.y-z.y)<FLOOR_H/2+BALL_R){
-      if(ball.y<=z.y){ ball.y=z.y-FLOOR_H/2-BALL_R; if(ball.vy>0){ ball.vy=-Math.max(MIN_BOUNCE*0.72,ball.vy*0.86); bounced=true; } }   // land on top -> bounce
-      else { ball.y=z.y+FLOOR_H/2+BALL_R; if(ball.vy<0) ball.vy=Math.abs(ball.vy)*0.5; } } }   // hit underside -> bonk down
+  for(const z of hazards){
+    if(z.type==='floor'){ if(ball.x>z.gx-z.gw/2 && ball.x<z.gx+z.gw/2)continue;   // gap = pass through
+      if(Math.abs(ball.y-z.y)<FLOOR_H/2+BALL_R){
+        if(ball.y<=z.y){ ball.y=z.y-FLOOR_H/2-BALL_R; if(ball.vy>0){ ball.vy=-Math.max(MIN_BOUNCE*0.72,ball.vy*0.86); bounced=true; } }
+        else { ball.y=z.y+FLOOR_H/2+BALL_R; if(ball.vy<0) ball.vy=Math.abs(ball.vy)*0.5; } } }
+    else if(z.type==='mfloor'||z.type==='cloud'){ if(ball.vy>0 && Math.abs(ball.x-z.x)<z.w/2 && ball.y<=z.y && ball.y+BALL_R>z.y-FLOOR_H/2 && ball.y-BALL_R<z.y+FLOOR_H/2){ ball.y=z.y-FLOOR_H/2-BALL_R; ball.vy=-(z.type==='cloud'?MIN_BOUNCE*0.62:Math.max(MIN_BOUNCE*0.72,Math.abs(ball.vy)*0.86)); bounced=true; } }   // one-way platforms (bounce on top, pass from below)
+  }
   return bounced; }
 function stepIntro(){ const b=ball;
   if(b.iphase===0){ b.x+=3.4; b.vx=3.4; b.y=startY-6+Math.sin(tick*0.4)*3; if(b.x>=W*0.5-16){ b.x=W*0.5-16; b.vx=0; b.iphase=1; b.it=16; } }   // run across the roof to its edge
@@ -222,12 +227,16 @@ function genHazards(){ const top=camY-H*0.5;   // generate up to half a screen a
     if(h>500 && Math.random()<0.1) hazards.push({type:'spring',x:AX0+28+Math.random()*(AX1-AX0-56),y:nextGenY-gap*0.5,cd:0});   // spring pad (super jump)
     if(Math.random()<0.16) gems.push({x:AX0+30+Math.random()*(AX1-AX0-60),y:nextGenY-gap*0.62,ink:true});   // ink bucket
     nextGenY-=gap; } }
-function spawnBand(y,h){ const r=Math.random(), span=AX1-AX0;
-  if(r<0.28){ const side=Math.random()<0.5?0:1; hazards.push({type:'spikeWall',side,y,h:60+Math.random()*70}); }
-  else if(r<0.5){ const gw=Math.max(82,150-h*0.02), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'bar',y,gx,gw}); }   // deadly spikes
-  else if(r<0.74){ const gw=Math.max(74,140-h*0.018), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'floor',y,gx,gw}); }   // solid floor (bounce, not deadly)
-  else { const baseX=AX0+30+Math.random()*(AX1-AX0-60); hazards.push({type:'saw',y,x:baseX,baseX,r:19,range:30+Math.random()*70,dir:Math.random()<0.5?1:-1,ph:Math.random()*7,spd:0.01+Math.random()*0.02}); } }
-function stepHazards(){ for(const z of hazards){ if(z.type==='saw'){ z.ph+=z.spd; z.x=z.baseX+Math.sin(z.ph)*z.range; } else if(z.type==='meteor'){ z.x+=z.vx; z.y+=z.vy; } else if(z.type==='spring'&&z.cd>0){ z.cd--; } }
+function spawnBand(y,h){ const span=AX1-AX0;
+  if(h<600){ const gw=Math.max(90,160-h*0.03), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'floor',y,gx,gw}); return; }   // gentle start: safe grey floors only (no deadly red)
+  const r=Math.random(), sky=h<2000, mkSaw=()=>{ const baseX=AX0+30+Math.random()*(span-60); hazards.push({type:'saw',y,x:baseX,baseX,r:19,range:30+Math.random()*70,dir:Math.random()<0.5?1:-1,ph:Math.random()*7,spd:0.01+Math.random()*0.02}); };
+  if(r<0.20){ const side=Math.random()<0.5?0:1; hazards.push({type:'spikeWall',side,y,h:60+Math.random()*70}); }
+  else if(r<0.40){ const gw=Math.max(82,150-h*0.02), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'bar',y,gx,gw}); }   // deadly spikes
+  else if(r<0.56){ const gw=Math.max(74,140-h*0.018), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'floor',y,gx,gw}); }   // solid floor
+  else if(r<0.70){ const w=84, baseX=AX0+w/2+10+Math.random()*(span-w-20); hazards.push({type:'mfloor',y,w,baseX,x:baseX,ph:Math.random()*7,range:36+Math.random()*60,spd:0.012+Math.random()*0.02}); }   // moving platform
+  else if(r<0.84){ if(sky){ const w=96, x=AX0+w/2+10+Math.random()*(span-w-20); hazards.push({type:'cloud',y,w,x}); } else mkSaw(); }   // cloud platform (sky) / saw (space)
+  else { if(sky) mkSaw(); else hazards.push({type:'firebar',x:AX0+span*(0.3+Math.random()*0.4),y,len:46+Math.random()*30,ph:Math.random()*7,spd:0.03+Math.random()*0.025,dir:Math.random()<0.5?1:-1}); } }   // fire bar (space)
+function stepHazards(){ for(const z of hazards){ if(z.type==='saw'){ z.ph+=z.spd; z.x=z.baseX+Math.sin(z.ph)*z.range; } else if(z.type==='meteor'){ z.x+=z.vx; z.y+=z.vy; } else if(z.type==='spring'&&z.cd>0){ z.cd--; } else if(z.type==='mfloor'){ z.ph+=z.spd; z.x=z.baseX+Math.sin(z.ph)*z.range; } else if(z.type==='firebar'){ z.ph+=z.spd*z.dir; } }
   for(let i=hazards.length-1;i>=0;i--){ const z=hazards[i]; if(z.y>camY+H+260 || (z.type==='meteor'&&(z.x<AX0-70||z.x>AX1+70))) hazards.splice(i,1); }
   for(let i=gems.length-1;i>=0;i--){ if(gems[i].y>camY+H+140) gems.splice(i,1); } }
 function collideHazards(){ const bx=ball.x,by=ball.y;
@@ -236,6 +245,7 @@ function collideHazards(){ const bx=ball.x,by=ball.y;
     else if(z.type==='bar'){ if(Math.abs(by-z.y)<9+BALL_R*0.5){ if(bx<z.gx-z.gw/2 || bx>z.gx+z.gw/2) return die(); } }
     else if(z.type==='saw'){ if(Math.hypot(bx-z.x,by-z.y)<z.r+BALL_R*0.8) return die(); }
     else if(z.type==='meteor'){ if(Math.hypot(bx-z.x,by-z.y)<z.r+BALL_R*0.7) return die(); }
+    else if(z.type==='firebar'){ const tx=z.x+Math.cos(z.ph)*z.len, ty=z.y+Math.sin(z.ph)*z.len, c=closestOnSeg(bx,by,z.x,z.y,tx,ty); if(Math.hypot(bx-c.x,by-c.y)<9+BALL_R*0.6) return die(); }
     else if(z.type==='spring'){ if(z.cd<=0 && Math.abs(bx-z.x)<22 && by>z.y-8 && by<z.y+18 && ball.vy>-2){ ball.vy=-17; ball.vx*=0.5; ball.squash=1.4; z.cd=20; puff(z.x,z.y,'#7be0a0',14); sfxSpring(); shake=Math.max(shake,5); } }
   } }
 
@@ -269,6 +279,8 @@ function drawBackground(){ const hf=Math.min(1,maxClimb/4500), sky=skyAt(hf);
   if(hf<0.5 && playing){ const wv=Math.sin(tick*0.008); if(Math.abs(wv)>0.25){ ctx.globalAlpha=0.1; ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; for(let i=0;i<4;i++){ const yy=((tick*1.6+i*H/4)%H), len=18*wv; ctx.beginPath(); ctx.moveTo(W*0.22+i*W*0.17,yy); ctx.lineTo(W*0.22+i*W*0.17+len,yy); ctx.stroke(); } ctx.globalAlpha=1; } } }   // wind streaks (sky)
 function draw(){ ctx.setTransform(DPR,0,0,DPR,0,0);
   drawBackground();
+  bbx.imageSmoothingEnabled=false; bbx.clearRect(0,0,BBW,BBH); bbx.drawImage(cv,0,0,BBW,BBH);   // downsample bg
+  ctx.imageSmoothingEnabled=false; ctx.drawImage(bbf,0,0,BBW,BBH,0,0,W,H); ctx.imageSmoothingEnabled=true;   // upscale -> chunky pixel bg
   ctx.save(); if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.85; } else shake=0;
   ctx.save(); ctx.translate(0,-camY);
   drawGround(); drawWalls(); drawStartHouse(); drawAltitude(); for(const z of hazards) drawHazard(z); drawGems(); drawLines(); if(ball&&(!dead||deadAnim>0)) drawBall();
@@ -333,6 +345,12 @@ function drawHazard(z){ const HZ='#e84855', gl=2+Math.min(1,maxClimb/4500)*5;   
     ctx.fillStyle='#9aa6bd'; ctx.fillRect(AX0,z.y-5,gx0-AX0,2); ctx.fillRect(gx1,z.y-5,AX1-gx1,2);
     ctx.fillStyle='#3a4456'; for(let x=AX0+8;x<gx0-4;x+=16) ctx.fillRect(x,z.y-1,2,2); for(let x=gx1+8;x<AX1-4;x+=16) ctx.fillRect(x,z.y-1,2,2);
     ctx.strokeStyle='#73d88c'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(gx0+6,z.y-9); ctx.lineTo(gx0,z.y-9); ctx.lineTo(gx0,z.y+9); ctx.lineTo(gx0+6,z.y+9); ctx.moveTo(gx1-6,z.y-9); ctx.lineTo(gx1,z.y-9); ctx.lineTo(gx1,z.y+9); ctx.lineTo(gx1-6,z.y+9); ctx.stroke(); }
+  else if(z.type==='mfloor'){ ctx.fillStyle='#68758c'; rr(ctx,z.x-z.w/2,z.y-5,z.w,10,3); ctx.fill(); ctx.fillStyle='#9aa6bd'; ctx.fillRect(z.x-z.w/2,z.y-5,z.w,2);
+    ctx.fillStyle='#3a4456'; for(let x=z.x-z.w/2+8;x<z.x+z.w/2-4;x+=14) ctx.fillRect(x,z.y-1,2,2);
+    ctx.fillStyle='#7be0a0'; ctx.beginPath(); ctx.moveTo(z.x-z.w/2-7,z.y); ctx.lineTo(z.x-z.w/2-2,z.y-4); ctx.lineTo(z.x-z.w/2-2,z.y+4); ctx.closePath(); ctx.moveTo(z.x+z.w/2+7,z.y); ctx.lineTo(z.x+z.w/2+2,z.y-4); ctx.lineTo(z.x+z.w/2+2,z.y+4); ctx.closePath(); ctx.fill(); }   // moving platform (arrows)
+  else if(z.type==='cloud'){ ctx.fillStyle='rgba(246,250,255,.92)'; ctx.beginPath(); ctx.ellipse(z.x,z.y,z.w*0.5,11,0,0,7); ctx.ellipse(z.x-z.w*0.32,z.y+3,z.w*0.26,9,0,0,7); ctx.ellipse(z.x+z.w*0.32,z.y+3,z.w*0.28,9,0,0,7); ctx.fill(); ctx.fillStyle='rgba(150,180,215,.45)'; ctx.fillRect(z.x-z.w*0.46,z.y+8,z.w*0.92,2); }   // cloud platform
+  else if(z.type==='firebar'){ ctx.save(); ctx.translate(z.x,z.y); ctx.fillStyle='#5a6680'; ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.fill(); ctx.rotate(z.ph);
+    const n=Math.floor(z.len/10); for(let i=1;i<=n;i++){ const r=i*10; ctx.fillStyle=i%2?'#ff9d3a':'#ff5a3a'; ctx.beginPath(); ctx.arc(r,0,5.5,0,7); ctx.fill(); ctx.fillStyle='#ffe08a'; ctx.beginPath(); ctx.arc(r,0,2.3,0,7); ctx.fill(); } ctx.restore(); }   // fire bar (deadly)
   else if(z.type==='spring'){ ctx.save(); ctx.translate(z.x,z.y); const c=z.cd>0?6:0;
     ctx.fillStyle='#39465c'; ctx.fillRect(-16,10,32,4);
     ctx.strokeStyle='#7be0a0'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-9,10); for(let i=0;i<3;i++){ ctx.lineTo(9,6-i*4+c); ctx.lineTo(-9,2-i*4+c); } ctx.stroke();
