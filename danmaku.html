@@ -87,7 +87,7 @@
     <div class="best" id="bestLine"></div>
     <div class="howlist" id="howlist">
       <div class="howrow"><span class="ic" id="icBomb"></span><span>あなたは<b>ボム兵</b>。<b>画面の外</b>から飛んでくる<b>弾幕</b>をよけろ！</span></div>
-      <div class="howrow"><span class="ic" id="icMove"></span><span><b>左パッド</b>＝移動 ／ <b>右ボタン</b>＝スロー（精密よけ）</span></div>
+      <div class="howrow"><span class="ic" id="icMove"></span><span>画面を<b>ドラッグ</b>してボム兵を動かし、弾をよけろ！</span></div>
       <div class="howrow"><span class="ic" id="icHeart"></span><span>当たり判定は<b>中心の点</b>だけ。ライフ2・生存<b>秒数</b>がスコア！</span></div>
     </div>
     <div class="orow"><span style="font-size:12px;color:#9fb4d0">つよさ</span><div class="seg" id="diffSeg"></div></div>
@@ -155,14 +155,13 @@ function resetWorld(){ player=makePlayer(); bullets=[]; warns=[]; puffs=[]; surv
   stars=[]; for(let i=0;i<74;i++){ const far=i<48; stars.push({x:Math.random()*W,y:AY0+Math.random()*(AY1-AY0),r:far?1:2,a:Math.random()*7,sp:far?0.12:0.4,far}); } }
 
 /* ---------- input ---------- */
-const pad={a:false,id:-1,bx:0,by:0,tx:0,ty:0}; let slowBtn={x:0,y:0,r:0,held:false,id:-1};
-function layoutUI(){ slowBtn.r=Math.max(40,Math.min(W,H)*0.11); slowBtn.x=W-slowBtn.r-26; slowBtn.y=H-slowBtn.r-22; }
+const pad={a:false,id:-1,bx:0,by:0,tx:0,ty:0};
+function layoutUI(){}
 function toW(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width),y:(e.clientY-r.top)*(H/r.height)}; }
 function onDown(e){ if(!playing)return; const p=toW(e);
-  if(Math.hypot(p.x-slowBtn.x,p.y-slowBtn.y)<=slowBtn.r){ slowBtn.held=true; slowBtn.id=e.pointerId; e.preventDefault(); return; }
-  if(p.x<W*0.6 && !pad.a){ pad.a=true; pad.id=e.pointerId; pad.bx=pad.tx=p.x; pad.by=pad.ty=p.y; e.preventDefault(); } }
+  if(!pad.a){ pad.a=true; pad.id=e.pointerId; pad.bx=pad.tx=p.x; pad.by=pad.ty=p.y; e.preventDefault(); } }
 function onMove(e){ if(pad.a&&pad.id===e.pointerId){ const p=toW(e); pad.tx=p.x; pad.ty=p.y; e.preventDefault(); } }
-function onUp(e){ if(pad.a&&pad.id===e.pointerId){ pad.a=false; pad.id=-1; } if(slowBtn.held&&slowBtn.id===e.pointerId){ slowBtn.held=false; slowBtn.id=-1; } }
+function onUp(e){ if(pad.a&&pad.id===e.pointerId){ pad.a=false; pad.id=-1; } }
 cv.addEventListener('pointerdown',onDown); window.addEventListener('pointermove',onMove,{passive:false});
 window.addEventListener('pointerup',onUp); window.addEventListener('pointercancel',onUp);
 const keys={}; window.addEventListener('keydown',e=>{ keys[e.key]=true; }); window.addEventListener('keyup',e=>{ keys[e.key]=false; });
@@ -210,8 +209,8 @@ function step(){ surviveT++; const D=DIFF[diff]||DIFF[1];
   // player move
   let mvx=0,mvy=0; const m=pad; if(m.a){ const dx=m.tx-m.bx,dy=m.ty-m.by,R=PADR(),len=Math.hypot(dx,dy); if(len>R*0.16){ mvx=Math.max(-1,Math.min(1,dx/R)); mvy=Math.max(-1,Math.min(1,dy/R)); } }
   if(keys['ArrowLeft']||keys['a'])mvx=-1; if(keys['ArrowRight']||keys['d'])mvx=1; if(keys['ArrowUp']||keys['w'])mvy=-1; if(keys['ArrowDown']||keys['s'])mvy=1;
-  const l=Math.hypot(mvx,mvy); if(l>1){mvx/=l;mvy/=l;} player.focus=slowBtn.held||keys['Shift'];
-  const spd=player.focus?FOCUS_RUN:MAX_RUN; player.vx+=mvx*ACC; player.vy+=mvy*ACC; player.vx*=FRIC; player.vy*=FRIC;
+  const l=Math.hypot(mvx,mvy); if(l>1){mvx/=l;mvy/=l;}
+  const spd=MAX_RUN; player.vx+=mvx*ACC; player.vy+=mvy*ACC; player.vx*=FRIC; player.vy*=FRIC;
   const ps=Math.hypot(player.vx,player.vy); if(ps>spd){ player.vx*=spd/ps; player.vy*=spd/ps; }
   player.x+=player.vx; player.y+=player.vy;
   player.x=Math.max(AX0+PR,Math.min(AX1-PR,player.x)); player.y=Math.max(AY0+PR,Math.min(AY1-PR,player.y));
@@ -303,7 +302,7 @@ function drawPlayer(){ const p=player; ctx.save(); ctx.translate(p.x,p.y); const
 
 /* ---------- UI layer (crisp) ---------- */
 function drawUI(){ uctx.setTransform(DPR,0,0,DPR,0,0); uctx.clearRect(0,0,W,H); uctx.lineCap='round'; uctx.lineJoin='round';
-  if(playing||dead){ timeHUD(); livesHUD(); if(playing){ drawPad(); drawSlowBtn(); } if(bannerT>0)drawBanner(); } }
+  if(playing||dead){ timeHUD(); livesHUD(); if(playing){ drawPad(); } if(bannerT>0)drawBanner(); } }
 function timeHUD(){ const t=(surviveT/60).toFixed(1); uctx.textAlign='center'; uctx.textBaseline='top';
   uctx.font='30px "Press Start 2P",monospace'; uctx.fillStyle='#f6fbff'; uctx.shadowColor='rgba(0,0,0,.9)'; uctx.shadowBlur=8; uctx.fillText(t,W/2,14); uctx.shadowBlur=0;
   uctx.font='9px "Press Start 2P",monospace'; uctx.fillStyle='rgba(207,226,247,.72)'; uctx.fillText('SEC  BEST '+save.best[diff].toFixed(1),W/2,56); uctx.textBaseline='alphabetic'; }
@@ -318,12 +317,6 @@ function drawPad(){ const R=PADR(); if(pad.a){ const x=pad.bx,y=pad.by; uctx.fil
   } else { const x=PADR()+24,y=H-PADR()-22; uctx.fillStyle='rgba(255,255,255,.05)'; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.fill();
     uctx.strokeStyle='rgba(255,255,255,.2)'; uctx.lineWidth=2; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.stroke();
     uctx.globalAlpha=.5; uctx.fillStyle='#cfe2f7'; uctx.font='10px "Press Start 2P",monospace'; uctx.textAlign='center'; uctx.textBaseline='middle'; uctx.fillText('MOVE',x,y); uctx.textBaseline='alphabetic'; uctx.globalAlpha=1; } }
-function drawSlowBtn(){ const x=slowBtn.x,y=slowBtn.y,R=slowBtn.r;
-  uctx.fillStyle=slowBtn.held?'rgba(255,47,95,.28)':'rgba(255,255,255,.07)'; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.fill();
-  uctx.lineWidth=2.5; uctx.strokeStyle=slowBtn.held?'#ff5a7a':'rgba(255,255,255,.34)'; uctx.beginPath(); uctx.arc(x,y,R,0,7); uctx.stroke();
-  const ic=slowBtn.held?'#ff8ea3':'#eaf6ff'; uctx.fillStyle=ic; uctx.beginPath(); uctx.arc(x,y-2,R*0.16,0,7); uctx.fill();
-  uctx.strokeStyle=ic; uctx.lineWidth=2; uctx.beginPath(); uctx.arc(x,y-2,R*0.34,0,7); uctx.stroke();
-  uctx.fillStyle=slowBtn.held?'#ffd2db':'#cfe2f7'; uctx.font='9px "Press Start 2P",monospace'; uctx.textAlign='center'; uctx.fillText('SLOW',x,y+R*0.62); }
 function drawBanner(){ uctx.save(); uctx.globalAlpha=Math.min(1,bannerT/14); uctx.textAlign='center'; uctx.textBaseline='middle';
   const fs=Math.round(Math.min(W,H)*0.045); uctx.font=fs+'px "DotGothic16",sans-serif';
   const tw=uctx.measureText(banner).width,bw=tw+50,bh=fs+22,cx=W/2,cy=H*0.2,bx=cx-bw/2,by=cy-bh/2;
@@ -339,7 +332,7 @@ function renderOpts(){ bestLine.textContent='ベスト記録 '+save.best[save.di
   diffSegEl.innerHTML=''; DIFF.forEach((d,i)=>{ const b=document.createElement('button'); b.textContent=d.n; if(i===save.diff)b.className='on'; b.onclick=()=>{save.diff=i;diff=i;persist();renderOpts();}; diffSegEl.appendChild(b); }); }
 function showHome(){ playing=false; dead=false; stopBGM(); ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display=''; optsEl.style.display='flex'; howlistEl.style.display='flex';
   resTitleEl.style.display='none'; resSubEl.style.display='none'; homeBtn.style.display='none'; startBtn.textContent='はじめる'; renderOpts(); }
-function startGame(){ actx(); fitCanvas(); layoutUI(); diff=save.diff; resetWorld(); pad.a=false; pad.id=-1; slowBtn.held=false; playing=true;
+function startGame(){ actx(); fitCanvas(); layoutUI(); diff=save.diff; resetWorld(); pad.a=false; pad.id=-1; playing=true;
   banner='START!'; bannerT=56; ovEl.classList.add('hide'); optsEl.style.display='none'; startBGM(); }
 function endGame(sec,best){ stopBGM(); ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display='none'; howlistEl.style.display='none'; optsEl.style.display='none';
   resTitleEl.style.display='block'; resSubEl.style.display='block'; resTitleEl.textContent=sec.toFixed(1)+' 秒'; resTitleEl.style.color='#ff7f93';
