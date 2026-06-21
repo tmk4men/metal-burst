@@ -133,6 +133,9 @@ const SKINS=[
   {id:'sun',  name:'サン',     body:'#ffd76a',dark:'#cf9a2a',belly:'#fff3cf', cost:160},
   {id:'grape',name:'グレープ', body:'#c79cff',dark:'#7d4fd0',belly:'#efe4ff', cost:220},
   {id:'coral',name:'コーラル', body:'#ff9f7a',dark:'#d96a44',belly:'#ffe6d8', cost:200},
+  {id:'mint', name:'ミント',   body:'#7fffd4',dark:'#2fae8f',belly:'#e9fff8', cost:180},
+  {id:'rose', name:'ローズ',   body:'#ff8fc8',dark:'#d65a9b',belly:'#ffe2f1', cost:240},
+  {id:'snow', name:'スノー',   body:'#eef6ff',dark:'#9fb6d4',belly:'#ffffff', cost:300},
 ];
 const DIFF=[ {name:'やさしい',err:0.22,rmin:32,rvar:46,dodge:0.25,skip:0.4},
              {name:'ふつう',  err:0.12,rmin:18,rvar:38,dodge:0.5, skip:0.18},
@@ -191,7 +194,7 @@ function buildArena(){
   bases=[{x:W/2,y:FH-mB-14},{x:W/2,y:mT+14}];   // team0 (you) = bottom, team1 (enemy) = top
   // cover walls mirrored top/bottom per the current map
   forts=[]; const t=Math.max(18,Math.min(W,H)*0.02);
-  const add=(x,y,w,h)=>forts.push({x:x-w/2,y:y-h/2,w,h});
+  const add=(x,y,w,h)=>forts.push({x:x-w/2,y:y-h/2,w,h,hp:8,max:8});   // breakable
   [-1,1].forEach(s=>{ for(const [fx,fy,fw] of curMap.f){ add(W*fx, FH/2+s*FH*Math.min(fy,0.22), W*fw, t); } });   // keep walls central, clear of spawn rows
   // decorations (within the field, away from the river)
   snowflakes=[]; for(let i=0;i<60;i++) snowflakes.push({x:Math.random()*W,y:Math.random()*FH,r:0.6+Math.random()*1.6,a:Math.random()*7});
@@ -239,19 +242,23 @@ function stepBalls(){ for(let i=balls.length-1;i>=0;i--){ const b=balls[i];
   const steps=Math.max(1,Math.ceil(Math.hypot(b.vx,b.vy)/(HIT_R*0.6))); let gone=false;   // substep so fast balls never tunnel through a hit
   for(let s=0;s<steps&&!gone;s++){ b.x+=b.vx/steps; b.y+=b.vy/steps;
     if(b.x<0||b.x>W||b.y<0||b.y>FH){ gone=true; break; }
-    if(inFort(b.x,b.y,0)){ puff(b.x,b.y,'#dbe8ff',5); gone=true; break; }
+    { const f=inFort(b.x,b.y,0); if(f){ f.hp--; puff(b.x,b.y,'#dbe8ff',5);
+        if(f.hp<=0){ const k=forts.indexOf(f); if(k>=0)forts.splice(k,1); puff(f.x+f.w/2,f.y+f.h/2,'#eaf3fc',16); shake=Math.max(shake,5); }
+        gone=true; break; } }
     for(const o of units){ if(o.team===b.team||o.dead)continue; if(Math.hypot(o.x-b.x,o.y-b.y)<HIT_R+BALL_R){ hitUnit(o,b); gone=true; break; } } }
   if(--b.life<=0)gone=true; if(gone)balls.splice(i,1); } }
-function hitUnit(o,b){ o.hp--; o.flash=1; const a=Math.atan2(o.y-b.y,o.x-b.x); o.vx+=Math.cos(a)*3.4; o.vy+=Math.sin(a)*3.4;
-  shake=Math.max(shake,6); puff(o.x,o.y,'#ffffff',7); sfxHit();
-  if(o.hp<=0){ o.dead=true; puff(o.x,o.y,o.team===0?'#bfe8ff':'#ffd2db',13); shake=Math.max(shake,9); sfxDown();
+function hitUnit(o,b){ o.hp--; o.flash=1; const a=Math.atan2(o.y-b.y,o.x-b.x); o.vx+=Math.cos(a)*3.6; o.vy+=Math.sin(a)*3.6;
+  shake=Math.max(shake,7); hitstop=Math.max(hitstop,4); puff(o.x,o.y,'#ffffff',9); sfxHit();
+  if(o.human)hurtFlash=1;
+  if(o.hp<=0){ o.dead=true; puff(o.x,o.y,o.team===0?'#bfe8ff':'#ffd2db',16); shake=Math.max(shake,11); hitstop=Math.max(hitstop,9); sfxDown();
+    if(o.human)hurtFlash=1;
     checkRound(); } }
 
 /* ---------- round / scoring (eliminate the enemy team) ---------- */
 let wins=[0,0], round=1, roundOver=false, runCoins=0;
 function checkRound(){ if(roundOver)return; const aB=units.some(u=>u.team===0&&!u.dead), aR=units.some(u=>u.team===1&&!u.dead);
   if(aB&&aR)return; roundOver=true; const w=aB?0:1; wins[w]++;
-  if(w===0) runCoins+=10; note(w===0?784:294,0.2,'triangle',0.12);
+  if(w===0){ runCoins+=10; confetti(W/2,FH*0.4,COL[0].body); } note(w===0?784:294,0.2,'triangle',0.12);
   banner=(w===0?'ラウンド WON!':'ラウンド LOST'); bannerT=90;
   if(wins[w]>=ROUND_WIN){ setTimeout(()=>endGame(w),1100); } else { setTimeout(nextRound,1600); } }
 function stepRevive(){ for(const d of units){ if(!d.dead)continue;
@@ -302,8 +309,9 @@ function controlAI(u){ if(u.dead)return; const D=DIFF[save.diff]||DIFF[1];
 
 /* ---------- particles ---------- */
 function puff(x,y,c,r){ for(let i=0;i<5+r*0.5|0;i++){ const a=Math.random()*7,s=0.5+Math.random()*2.4; puffs.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,c,r:1+Math.random()*r*0.35}); } }
-function stepPuffs(){ for(let i=puffs.length-1;i>=0;i--){ const p=puffs[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.92; p.vy*=0.92; p.life-=0.05; if(p.life<=0)puffs.splice(i,1); } }
-let shake=0;
+function stepPuffs(){ for(let i=puffs.length-1;i>=0;i--){ const p=puffs[i]; p.x+=p.vx; p.y+=(p.vy+(p.g||0)); p.vx*=0.94; p.vy*=0.94; p.life-=(p.dl||0.05); if(p.life<=0)puffs.splice(i,1); } }
+let shake=0, hitstop=0, hurtFlash=0;
+function confetti(x,y,col){ for(let i=0;i<26;i++){ const a=Math.random()*7,sp=1+Math.random()*4; puffs.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,g:0.12,life:1,dl:0.018,c:(Math.random()<0.5?col:'#ffffff'),r:1.5+Math.random()*3}); } }
 
 /* ---------- render ---------- */
 function draw(){ ctx.setTransform(scl,0,0,scl,0,0); ctx.imageSmoothingEnabled=false;   // crisp pixels for the dot-art scene
@@ -323,6 +331,8 @@ function draw(){ ctx.setTransform(scl,0,0,scl,0,0); ctx.imageSmoothingEnabled=fa
   for(const f of forts){ ctx.fillStyle='rgba(11,22,42,.18)'; rr(ctx,f.x+2,f.y+4,f.w,f.h,7); ctx.fill();   // ground shadow
     ctx.fillStyle='#c4d6ee'; rr(ctx,f.x,f.y,f.w,f.h,7); ctx.fill();                                       // body
     ctx.fillStyle='#f4faff'; rr(ctx,f.x,f.y,f.w,Math.min(f.h,8),6); ctx.fill();                            // snow cap
+    if(f.hp<f.max){ ctx.strokeStyle='rgba(30,52,82,.5)'; ctx.lineWidth=1.5;                                // cracks as it takes damage
+      for(let i=0;i<f.max-f.hp;i++){ const cx=f.x+(i+1)/f.max*f.w; ctx.beginPath(); ctx.moveTo(cx,f.y+2); ctx.lineTo(cx-3,f.y+f.h-2); ctx.stroke(); } }
     ctx.strokeStyle='rgba(140,165,200,.7)'; ctx.lineWidth=1.2; rr(ctx,f.x,f.y,f.w,f.h,7); ctx.stroke(); }
   // units (sorted by y)
   const order=units.slice().sort((a,b)=>a.y-b.y); for(const u of order) drawDino(u);
@@ -398,6 +408,8 @@ function drawDino(u){ const c=COL[u.team]; ctx.save(); ctx.translate(u.x,u.y);
 /* ---------- UI layer ---------- */
 let intro=0, banner='', bannerT=0, tick=0;
 function drawUI(){ uctx.setTransform(uscl,0,0,uscl,0,0); uctx.clearRect(0,0,W,H); uctx.lineCap='round'; uctx.lineJoin='round';
+  if(hurtFlash>0){ const g=uctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.18,W/2,H/2,Math.max(W,H)*0.6);
+    g.addColorStop(0,'rgba(255,60,80,0)'); g.addColorStop(1,'rgba(255,45,65,'+(hurtFlash*0.5).toFixed(2)+')'); uctx.fillStyle=g; uctx.fillRect(0,0,W,H); }
   if(playing){ scoreHUD(); if(me){ packHUD(); if(me.dead) deadHUD(); } drawPads(); if(bannerT>0)drawBanner(); }
 }
 function scoreHUD(){ const aB=units.filter(u=>u.team===0&&!u.dead).length, aR=units.filter(u=>u.team===1&&!u.dead).length;
@@ -486,7 +498,9 @@ function drawBanner(){ uctx.save(); uctx.globalAlpha=Math.min(1,bannerT/16); uct
 /* ---------- loop / flow ---------- */
 let playing=false;
 function loop(){ tick++; if(bannerT>0)bannerT--;
+  if(hurtFlash>0)hurtFlash=Math.max(0,hurtFlash-0.06);
   if(intro>0){ intro--; stepPuffs(); draw(); requestAnimationFrame(loop); return; }
+  if(hitstop>0){ hitstop--; stepPuffs(); draw(); requestAnimationFrame(loop); return; }   // brief freeze on impact
   if(playing && !roundOver){ controlHuman(); for(const u of units)if(!u.human)controlAI(u); stepBalls(); stepRevive(); }
   stepPuffs();
   draw(); requestAnimationFrame(loop);
