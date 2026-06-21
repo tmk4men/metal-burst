@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ミニゲーム アーケード — PLAY</title>
+<meta name="theme-color" content="#0a0f1e">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta property="og:title" content="ミニゲーム アーケード">
+<meta property="og:description" content="スマホで遊べるオリジナル・ミニゲーム集。">
+<meta property="og:image" content="https://tmk4men.github.io/metal-burst/trampoline-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ min-height:100vh; color:#eaf1fb; font-family:"DotGothic16",sans-serif; background:linear-gradient(180deg,#101a34,#0a0f1e 60%); }
+  .wrap{ max-width:760px; margin:0 auto; padding:calc(28px + env(safe-area-inset-top)) 18px 60px; }
+  header{ text-align:center; margin-bottom:26px; }
+  .tag{ font-family:"Press Start 2P",monospace; font-size:10px; letter-spacing:5px; color:#7fa8d8; }
+  h1{ font-size:clamp(28px,8vw,46px); margin-top:10px; letter-spacing:1px; text-shadow:0 3px 0 #06101e,0 0 30px rgba(126,220,255,.25); }
+  h1 b{ color:#7edcff; } .sub{ color:#9fb4d0; font-size:13px; margin-top:8px; }
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  @media(max-width:480px){ .grid{ grid-template-columns:1fr; } }
+  a.card{ display:flex; flex-direction:column; justify-content:flex-end; min-height:128px; padding:16px; border-radius:16px; text-decoration:none; color:#fff; position:relative; overflow:hidden;
+    border:1px solid rgba(255,255,255,.12); box-shadow:0 16px 34px -18px #000c, inset 0 1px 0 #ffffff1c; transition:transform .08s, box-shadow .12s; }
+  a.card:active{ transform:translateY(2px); }
+  a.card:hover{ box-shadow:0 22px 44px -18px #000d, inset 0 1px 0 #ffffff2c; }
+  a.card .jp{ font-size:20px; font-weight:700; text-shadow:0 2px 6px #0008; }
+  a.card .en{ font-family:"Press Start 2P",monospace; font-size:8px; letter-spacing:2px; opacity:.85; margin-top:7px; }
+  a.card .d{ font-size:12px; color:#eef4ffcc; margin-top:8px; line-height:1.4; }
+  a.card .badge{ position:absolute; top:12px; right:12px; font-family:"Press Start 2P",monospace; font-size:7px; padding:5px 7px; border-radius:8px; background:#0006; border:1px solid #ffffff2a; letter-spacing:1px; }
+  a.card::after{ content:""; position:absolute; inset:0; background:radial-gradient(120% 120% at 80% 0%, #ffffff14, #0000 55%); pointer-events:none; }
+  footer{ text-align:center; color:#6f86a6; font-size:11px; margin-top:30px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">MINI GAME ARCADE</div>
+    <h1>あそぶ<b>。</b></h1>
+    <div class="sub">スマホで遊べる、オリジナル・ミニゲーム集</div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <footer>タップして遊べます ・ 縦画面推奨<br>© tmk — original games</footer>
+</div>
+<script>
+const GAMES=[
+  {f:'trampoline.html', jp:'えがけ！トランポリン', en:'DRAW BOUNCE', d:'線を描いて跳ね、屋上から宇宙へ登る', c:['#1c3b5a','#2a6a8a'], badge:'NEW'},
+  {f:'danmaku.html', jp:'あやうし！ボム兵 弾幕', en:'BULLET HELL', d:'画面外から来る弾幕をよけて生き残れ', c:['#3a1430','#7a2350'], badge:''},
+  {f:'bombhei.html', jp:'あやうし！ボム兵', en:'BOMB PANIC', d:'爆弾をよけ、蹴って当てる対戦', c:['#16314a','#2c5a7a'], badge:''},
+  {f:'airpunch.html', jp:'うしろからパンチ', en:'AIR PUNCH', d:'背後から空気砲で場外へ落とす', c:['#15324a','#3a6a86'], badge:''},
+  {f:'yukigassen.html', jp:'ゆきがっせん', en:'SNOW FRIENDS', d:'川をはさんだ雪玉の当て合い', c:['#1d3a5a','#3f72a0'], badge:''},
+  {f:'snowball.html', jp:'雪合戦オンライン', en:'SNOWBALL', d:'1対1のリアルタイム雪合戦', c:['#1a2b50','#3a4f88'], badge:''},
+  {f:'index.html', jp:'METAL BURST', en:'ARTILLERY', d:'戦車で撃ち合う砲撃バトル', c:['#2a2418','#6a5a2a'], badge:''},
+];
+const g=document.getElementById('grid');
+for(const x of GAMES){ const a=document.createElement('a'); a.href=x.f; a.className='card';
+  a.style.background='linear-gradient(150deg,'+x.c[0]+','+x.c[1]+')';
+  a.innerHTML=(x.badge?'<span class="badge">'+x.badge+'</span>':'')+'<div class="jp">'+x.jp+'</div><div class="en">'+x.en+'</div><div class="d">'+x.d+'</div>';
+  g.appendChild(a); }
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "えがけ！トランポリン",
+  "short_name": "トランポリン",
+  "description": "線を描いてキャラを跳ね上げ、屋上から空、そして宇宙へ登るドット絵アクション。",
+  "start_url": "trampoline.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c1020",
+  "theme_color": "#0c1020",
+  "icons": [
+    { "src": "tr-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "tr-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
