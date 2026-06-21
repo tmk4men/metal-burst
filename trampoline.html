@@ -140,6 +140,7 @@ function sfxDie(){ const a=actx(),m=bus(); if(!a||!m)return; const b=a.createBuf
   for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.6); const s=a.createBufferSource(); s.buffer=b; const g=a.createGain();
   g.gain.value=0.5; g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.5); s.connect(g); g.connect(m); s.start(); note(180,0.4,'sawtooth',0.12,-120); }
 function sfxBest(){ [659,880,1175].forEach((f,i)=>setTimeout(()=>note(f,0.18,'triangle',0.12),i*90)); }
+function sfxCombo(){ note(620+Math.min(10,combo)*45,0.1,'square',0.06,220); }
 function sfxCoin(){ note(940,0.07,'square',0.05,360); }
 function sfxSpring(){ note(280,0.2,'square',0.09,620); }
 function sfxNoInk(){ note(150,0.12,'square',0.05,-70); }
@@ -154,10 +155,11 @@ function setMuted(m){ muted=m; try{localStorage.setItem('tr_mute',m?'1':'0');}ca
 let ball=null, lines=[], hazards=[], gems=[], puffs=[], bgStars=[];
 let camY=0, climb=0, maxClimb=0, nextGenY=0, playing=false, dead=false, shake=0, tick=0;
 let runCoins=0, wind=0, meteorT=200, deadAnim=0, ink=INK_MAX, noInkFlash=0;
+let combo=0, comboT=0, comboBest=0, springHit=false;
 const startY=0;
 function resetWorld(){ ball={x:AX0-30,y:startY-6,vx:0,vy:0,squash:0,spin:0,intro:true,iphase:0,it:0};   // enters from the left, then dives
   lines=[]; hazards=[]; gems=[]; puffs=[]; camY=startY-H*0.40; climb=0; maxClimb=0; dead=false; shake=0;
-  runCoins=0; wind=0; meteorT=200; deadAnim=0; ink=INK_MAX; noInkFlash=0;
+  runCoins=0; wind=0; meteorT=200; deadAnim=0; ink=INK_MAX; noInkFlash=0; combo=0; comboT=0; comboBest=0; springHit=false;
   nextGenY=startY-H*0.85;   // first hazards start ~ one screen up (calm beginning)
   bgStars=[]; for(let i=0;i<60;i++) bgStars.push({x:Math.random()*W,y:Math.random()*H,r:0.6+Math.random()*1.6,a:Math.random()*7,d:0.3+Math.random()*0.7}); }
 
@@ -213,6 +215,9 @@ function step(){ tick++;
   if(ink<INK_MAX) ink=Math.min(INK_MAX,ink+INK_REGEN);   // slow ink regen
   for(let i=gems.length-1;i>=0;i--){ const gm=gems[i]; if(Math.hypot(ball.x-gm.x,ball.y-gm.y)<BALL_R+9){ gems.splice(i,1); if(gm.ink){ ink=Math.min(INK_MAX,ink+INK_BUCKET); puff(gm.x,gm.y,'#7edcff',12); sfxInk(); } else { runCoins++; puff(gm.x,gm.y,'#ffd24a',8); sfxCoin(); } } }
   if(noInkFlash>0)noInkFlash--;
+  const anyB=bounced||springHit; springHit=false;   // combo: chain bounces without stalling
+  if(anyB){ combo++; comboT=140; if(combo>comboBest)comboBest=combo; if(combo>=4 && combo%4===0){ runCoins+=Math.floor(combo/4); puff(ball.x,ball.y-22,'#ffd24a',10); sfxCombo(); } }
+  else if(comboT>0){ comboT--; if(comboT<=0)combo=0; }
   if(ball.y-camY>H+50) die();   // fell below the view
 }
 function die(){ if(dead)return; dead=true; playing=false; deadAnim=44; ball.dvy=-4.5; ball.dspin=0.42; puff(ball.x,ball.y,'#ff7f93',28); sfxDie(); shake=16; if(navigator.vibrate)try{navigator.vibrate(60);}catch(e){}
@@ -246,7 +251,7 @@ function collideHazards(){ const bx=ball.x,by=ball.y;
     else if(z.type==='saw'){ if(Math.hypot(bx-z.x,by-z.y)<z.r+BALL_R*0.8) return die(); }
     else if(z.type==='meteor'){ if(Math.hypot(bx-z.x,by-z.y)<z.r+BALL_R*0.7) return die(); }
     else if(z.type==='firebar'){ const tx=z.x+Math.cos(z.ph)*z.len, ty=z.y+Math.sin(z.ph)*z.len, c=closestOnSeg(bx,by,z.x,z.y,tx,ty); if(Math.hypot(bx-c.x,by-c.y)<9+BALL_R*0.6) return die(); }
-    else if(z.type==='spring'){ if(z.cd<=0 && Math.abs(bx-z.x)<22 && by>z.y-8 && by<z.y+18 && ball.vy>-2){ ball.vy=-17; ball.vx*=0.5; ball.squash=1.4; z.cd=20; puff(z.x,z.y,'#7be0a0',14); sfxSpring(); shake=Math.max(shake,5); } }
+    else if(z.type==='spring'){ if(z.cd<=0 && Math.abs(bx-z.x)<22 && by>z.y-8 && by<z.y+18 && ball.vy>-2){ ball.vy=-17; ball.vx*=0.5; ball.squash=1.4; z.cd=20; springHit=true; puff(z.x,z.y,'#7be0a0',14); sfxSpring(); shake=Math.max(shake,5); } }
   } }
 
 /* ---------- particles ---------- */
@@ -337,7 +342,7 @@ function drawHazard(z){ const HZ='#e84855', gl=2+Math.min(1,maxClimb/4500)*5;   
     ctx.strokeStyle='#73d88c'; ctx.lineWidth=3; const gx0=z.gx-z.gw/2, gx1=z.gx+z.gw/2;   // safe-gap "exit" brackets
     ctx.beginPath(); ctx.moveTo(gx0+6,z.y-11); ctx.lineTo(gx0,z.y-11); ctx.lineTo(gx0,z.y+11); ctx.lineTo(gx0+6,z.y+11); ctx.moveTo(gx1-6,z.y-11); ctx.lineTo(gx1,z.y-11); ctx.lineTo(gx1,z.y+11); ctx.lineTo(gx1-6,z.y+11); ctx.stroke(); }
   else if(z.type==='saw'){ ctx.save(); ctx.translate(z.x,z.y);
-    ctx.globalAlpha=.16; ctx.fillStyle=HZ; ctx.beginPath(); ctx.arc(0,0,z.r+10,0,7); ctx.fill(); ctx.globalAlpha=1;   // danger halo
+    ctx.globalAlpha=.45+.3*Math.sin(tick*0.3); ctx.strokeStyle=HZ; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,z.r+7,0,7); ctx.stroke(); ctx.globalAlpha=1;   // hard danger ring
     ctx.rotate(tick*0.2*z.dir); ctx.fillStyle='#9aa6bf'; const teeth=8; for(let i=0;i<teeth;i++){ const a=i/teeth*Math.PI*2; ctx.beginPath(); ctx.moveTo(Math.cos(a)*z.r,Math.sin(a)*z.r); ctx.lineTo(Math.cos(a+0.4)*(z.r+6),Math.sin(a+0.4)*(z.r+6)); ctx.lineTo(Math.cos(a+0.8)*z.r,Math.sin(a+0.8)*z.r); ctx.closePath(); ctx.fill(); }
     ctx.fillStyle='#5a6680'; ctx.beginPath(); ctx.arc(0,0,z.r,0,7); ctx.fill(); ctx.fillStyle=HZ; ctx.beginPath(); ctx.arc(0,0,z.r*0.28,0,7); ctx.fill(); ctx.restore(); }
   else if(z.type==='floor'){ const gx0=z.gx-z.gw/2, gx1=z.gx+z.gw/2;   // solid steel floor with a safe gap (not deadly)
@@ -414,6 +419,7 @@ function drawHUD(){ uctx.setTransform(DPR,0,0,DPR,0,0); uctx.clearRect(0,0,W,H);
   uctx.fillStyle='rgba(8,14,28,.5)'; rr(uctx,W-88,18+SAT,76,24,8); uctx.fill();
   uctx.fillStyle='#b8860b'; uctx.beginPath(); uctx.arc(W-72,30+SAT,7,0,7); uctx.fill(); uctx.fillStyle='#ffd24a'; uctx.beginPath(); uctx.arc(W-72,30+SAT,5,0,7); uctx.fill(); uctx.fillStyle='#ffe9a6'; uctx.fillRect(W-75,30+SAT-3,2,2);
   uctx.textAlign='left'; uctx.font='10px "Press Start 2P",monospace'; uctx.fillStyle='#ffe08a'; uctx.fillText('x'+runCoins,W-60,30+SAT+4);
+  if(combo>=2){ const ps=1+(comboT>132?(comboT-132)*0.06:0); uctx.save(); uctx.translate(W/2,92+SAT); uctx.scale(ps,ps); uctx.textAlign='center'; uctx.font='15px "Press Start 2P",monospace'; uctx.fillStyle=combo>=8?'#ff9d3a':'#ffd24a'; uctx.shadowColor='rgba(0,0,0,.85)'; uctx.shadowBlur=6; uctx.fillText('x'+combo+' COMBO',0,0); uctx.shadowBlur=0; uctx.restore(); }
   uctx.globalAlpha=1; uctx.textBaseline='alphabetic'; }
 
 /* ---------- loop / flow ---------- */
@@ -434,7 +440,7 @@ function startGame(){ actx(); fitCanvas(); resetWorld(); playing=true; drawing=f
 function endGame(m,best){ stopBGM(); ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display='none'; howlistEl.style.display='none'; optsEl.style.display='none';
   resTitleEl.style.display='block'; resSubEl.style.display='block'; resTitleEl.textContent=m+' m';
   const pct=save.best>0?Math.min(100,m/save.best*100):100;
-  resSubEl.innerHTML=(best?'<b style="color:#ffd76a">★ ベスト更新！</b>':('ベスト '+save.best+' m'))+'<div class="bar"><div class="barfill" style="width:'+pct+'%"></div></div>'+(runCoins>0?('<div style="color:#ffd24a;margin-top:7px;font-size:13px">＋'+runCoins+' コイン</div>'):'');
+  resSubEl.innerHTML=(best?'<b style="color:#ffd76a">★ ベスト更新！</b>':('ベスト '+save.best+' m'))+'<div class="bar"><div class="barfill" style="width:'+pct+'%"></div></div>'+(comboBest>=4?('<div style="color:#ffd24a;margin-top:6px;font-size:12px">最高コンボ x'+comboBest+'</div>'):'')+(runCoins>0?('<div style="color:#ffd24a;margin-top:5px;font-size:13px">＋'+runCoins+' コイン</div>'):'');
   if(best)sfxBest(); startBtn.textContent='もう一度'; homeBtn.style.display=''; }
 startBtn.onclick=startGame; homeBtn.onclick=showHome;
 document.getElementById('icDraw').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h13" stroke="#7edcff" stroke-width="2.2"/><path d="M5 22h11" stroke="#4f7fa6" stroke-width="2"/><path d="M15 5l3 3-8 8-3 0 0-3z" stroke="#cfe8ff" stroke-width="1.6"/></svg>';
