@@ -85,8 +85,8 @@ function fitCanvas(){ W=Math.max(300,Math.floor(window.innerWidth)); H=Math.max(
 window.addEventListener('resize',()=>{ fitCanvas(); checkRotate(); });
 
 /* ---------- constants ---------- */
-const BALL_R=14, GRAV=0.26, MAXV=19, WALL_REST=0.62;
-const TRAMP_E=1.09, MIN_BOUNCE=10.8;           // restitution + guaranteed min upward bounce speed (bouncier)
+const BALL_R=14, GRAV=0.225, MAXV=19, WALL_REST=0.62;
+const TRAMP_E=1.09, MIN_BOUNCE=11.2;           // restitution + guaranteed min upward bounce speed (floatier)
 const LINE_MAX=150, MIN_LINE=14, MAX_LINES=2;  // ink length cap, min drawable, persistent line count
 const SPIKE_DEPTH=15;
 let AX0=0,AX1=0;
@@ -120,7 +120,7 @@ function setMuted(m){ muted=m; try{localStorage.setItem('tr_mute',m?'1':'0');}ca
 let ball=null, lines=[], hazards=[], puffs=[], bgStars=[];
 let camY=0, climb=0, maxClimb=0, nextGenY=0, playing=false, dead=false, shake=0, tick=0;
 const startY=0;
-function resetWorld(){ ball={x:W/2,y:startY,vx:0,vy:0.6,squash:0,spin:0};   // gentle initial drop
+function resetWorld(){ ball={x:AX0-30,y:startY-6,vx:0,vy:0,squash:0,spin:0,intro:true,iphase:0,it:0};   // enters from the left, then dives
   lines=[]; hazards=[]; puffs=[]; camY=startY-H*0.40; climb=0; maxClimb=0; dead=false; shake=0;
   nextGenY=startY-H*0.85;   // first hazards start ~ one screen up (calm beginning)
   bgStars=[]; for(let i=0;i<60;i++) bgStars.push({x:Math.random()*W,y:Math.random()*H,r:0.6+Math.random()*1.6,a:Math.random()*7,d:0.3+Math.random()*0.7}); }
@@ -149,7 +149,12 @@ function substep(dt){ ball.vy+=GRAV*dt; const sp=Math.hypot(ball.vx,ball.vy); if
   if(ball.x<AX0+BALL_R){ ball.x=AX0+BALL_R; ball.vx=Math.abs(ball.vx)*WALL_REST; }
   if(ball.x>AX1-BALL_R){ ball.x=AX1-BALL_R; ball.vx=-Math.abs(ball.vx)*WALL_REST; }
   let bounced=false; for(const ln of lines){ if(bounceLine(ln))bounced=true; } return bounced; }
+function stepIntro(){ const b=ball;
+  if(b.iphase===0){ b.x+=3.4; b.vx=3.4; b.y=startY-6+Math.sin(tick*0.4)*4; if(b.x>=W*0.5){ b.x=W*0.5; b.vx=0; b.iphase=1; b.it=16; } }   // run in from the left
+  else if(b.iphase===1){ b.vy=0; if(--b.it<=0){ b.iphase=2; b.vy=-3.4; } }   // little crouch, then leap
+  else { b.vy+=GRAV; b.y+=b.vy; if(b.vy>0.5){ b.intro=false; } } }            // jump off -> hand over to play
 function step(){ tick++;
+  if(ball.intro){ stepIntro(); genHazards(); stepHazards(); stepPuffs(); return; }
   let bounced=false; for(let s=0;s<3;s++){ if(substep(1/3))bounced=true; }
   if(bounced){ const sp=Math.hypot(ball.vx,ball.vy); sfxBounce(Math.min(1,sp/MAXV)); puff(ball.x,ball.y,'#9af0bb',14); if(sp>13)shake=Math.max(shake,3); }
   for(let i=lines.length-1;i>=0;i--){ if(lines[i].hits>=2){ const r=lines[i]; puff((r.x1+r.x2)/2,(r.y1+r.y2)/2,'#ffd76a',12); lines.splice(i,1); } }   // each trampoline breaks after 2 bounces
@@ -187,13 +192,30 @@ function stepPuffs(){ for(let i=puffs.length-1;i>=0;i--){ const p=puffs[i]; p.x+
 
 /* ---------- render ---------- */
 function rr(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+/* ---------- background: ground -> sky -> space, driven by height ---------- */
+const SKY=[ {top:[74,134,196],bot:[150,196,226]},   // ground / daytime sky
+            {top:[58,86,150], bot:[96,120,170]},     // high sky
+            {top:[40,34,86],  bot:[58,44,98]},       // twilight / upper atmosphere
+            {top:[8,8,22],    bot:[4,4,12]} ];        // deep space
+function lerpC(a,b,t){ return ((a[0]+(b[0]-a[0])*t)|0)+','+((a[1]+(b[1]-a[1])*t)|0)+','+((a[2]+(b[2]-a[2])*t)|0); }
+function skyAt(hf){ const seg=SKY.length-1, f=hf*seg, i=Math.min(seg-1,Math.floor(f)), tt=f-i; return {top:lerpC(SKY[i].top,SKY[i+1].top,tt), bot:lerpC(SKY[i].bot,SKY[i+1].bot,tt)}; }
+const NEB=[[0.28,0.30,'rgba(120,150,225,.12)'],[0.74,0.55,'rgba(160,100,210,.11)'],[0.5,0.82,'rgba(70,180,180,.09)']];
+const PLANETS=[{x:0.18,y:520,r:40,par:0.05,c:['#46608f','#19223f','#7e98c8']},{x:0.84,y:1300,r:64,par:0.034,c:['#6a4878','#23142f','#a585b8']},{x:0.5,y:2200,r:30,par:0.07,c:['#3f7a72','#13241f','#74c2b0']}];
+const CLOUDS=[{x:0.3,y:140,s:1.1},{x:0.72,y:430,s:1.4},{x:0.45,y:720,s:0.9},{x:0.82,y:1010,s:1.2},{x:0.2,y:1280,s:1.0}];
+function cloudShape(x,y,s){ ctx.beginPath(); ctx.ellipse(x,y,28*s,15*s,0,0,7); ctx.ellipse(x-22*s,y+5,19*s,12*s,0,0,7); ctx.ellipse(x+24*s,y+6,21*s,13*s,0,0,7); ctx.fill(); }
+function drawPlanet(x,y,r,c,a){ const g=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r); g.addColorStop(0,c[0]); g.addColorStop(1,c[1]); ctx.globalAlpha=0.5*a; ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+  ctx.globalAlpha=0.16*a; ctx.strokeStyle=c[2]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+function drawBackground(){ const hf=Math.min(1,maxClimb/4500), sky=skyAt(hf);
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgb('+sky.top+')'); g.addColorStop(1,'rgb('+sky.bot+')'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  if(hf<0.6){ const sa=1-hf/0.6, sx=W*0.78, sy=H*0.22, sg=ctx.createRadialGradient(sx,sy,0,sx,sy,H*0.4); sg.addColorStop(0,'rgba(255,224,150,'+(0.2*sa)+')'); sg.addColorStop(1,'rgba(255,224,150,0)'); ctx.fillStyle=sg; ctx.fillRect(0,0,W,H); }   // sun glow near ground
+  const spA=0.18+0.82*hf;   // space elements fade IN as you rise
+  ctx.globalAlpha=spA; for(let i=0;i<NEB.length;i++){ const b=NEB[i], cx=W*b[0]+Math.sin(tick*0.004+i)*26, cy=((H*b[1]+maxClimb*0.03*(0.4+i*0.25))%(H+260)+H+260)%(H+260)-130, r=Math.min(W,H)*0.62, g2=ctx.createRadialGradient(cx,cy,0,cx,cy,r); g2.addColorStop(0,b[2]); g2.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,H); } ctx.globalAlpha=1;
+  for(const p of PLANETS){ const py=((p.y+maxClimb*p.par)%(H+340)+H+340)%(H+340)-170; drawPlanet(p.x*W,py,p.r,p.c,spA); }
+  if(hf<0.55){ const ca=(1-hf/0.55)*0.5; ctx.fillStyle='rgba(222,234,250,'+ca+')'; for(const c of CLOUDS){ const cy=((c.y+maxClimb*0.12)%(H+240)+H+240)%(H+240)-120; cloudShape(c.x*W,cy,c.s); } }   // low clouds scroll away
+  const fast=ball&&Math.abs(ball.vy)>10, stA=0.3+0.7*hf; for(const s of bgStars){ const sy=(s.y+maxClimb*s.d*0.08)%H, yy=((sy+H)%H)|0; ctx.globalAlpha=(0.12+0.12*Math.sin(tick*0.05+s.a))*stA; ctx.fillStyle='#cfe0f5'; ctx.fillRect(s.x|0,yy,s.r,fast?(8+s.r*4):s.r); } ctx.globalAlpha=1; }
 function draw(){ ctx.setTransform(DPR,0,0,DPR,0,0);
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0e1430'); g.addColorStop(1,'#0b1022'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  const t=tick*0.005; for(let i=0;i<2;i++){ const cx=W*(0.3+0.4*i)+Math.sin(t+i)*30, cy=H*(0.34+0.34*i); const g2=ctx.createRadialGradient(cx,cy,0,cx,cy,H*0.5); g2.addColorStop(0,i?'rgba(123,224,160,.06)':'rgba(126,180,255,.07)'); g2.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,H); }   // soft depth glow
+  drawBackground();
   ctx.save(); if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.85; } else shake=0;
-  // parallax stars (screen-space, drift with climb)
-  const fast=ball&&Math.abs(ball.vy)>10; for(const s of bgStars){ const sy=(s.y + maxClimb*s.d*0.08)%H, yy=((sy+H)%H)|0; ctx.globalAlpha=0.12+0.12*Math.sin(tick*0.05+s.a); ctx.fillStyle='#8197b8'; ctx.fillRect(s.x|0, yy, s.r, fast?(8+s.r*4):s.r); } ctx.globalAlpha=1;
-  // world transform
   ctx.save(); ctx.translate(0,-camY);
   drawWalls(); drawAltitude(); for(const z of hazards) drawHazard(z); drawLines(); if(ball&&!dead) drawBall();
   for(const p of puffs){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c; ctx.fillRect((p.x-p.r)|0,(p.y-p.r)|0,(p.r*2)|0,(p.r*2)|0); } ctx.globalAlpha=1;
@@ -236,26 +258,29 @@ function drawLines(){
   if(drawing&&curLine){ const len=Math.hypot(curLine.x2-curLine.x1,curLine.y2-curLine.y1); ctx.globalAlpha=0.8; lineStroke(curLine.x1,curLine.y1,curLine.x2,curLine.y2, len>=MIN_LINE?'#9af0bb':'#ff8aa0',8); ctx.globalAlpha=1; } }
 function lineStroke(x1,y1,x2,y2,col,w){ ctx.lineCap='round'; ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=Math.max(1,w-5); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
-function drawBall(){ const b=ball, sq=b.squash*0.45; ctx.save(); ctx.translate(b.x,b.y);
-  ctx.globalAlpha=.2; ctx.fillStyle='#7edcff'; ctx.beginPath(); ctx.arc(0,0,BALL_R*1.85,0,7); ctx.fill(); ctx.globalAlpha=1;
+function drawBall(){ const b=ball, sq=b.squash*0.4; ctx.save(); ctx.translate(b.x,b.y);
+  ctx.globalAlpha=.18; ctx.fillStyle='#7edcff'; ctx.beginPath(); ctx.arc(0,0,BALL_R*1.7,0,7); ctx.fill(); ctx.globalAlpha=1;
   ctx.scale(1+sq,1-sq);
-  // star antenna
-  ctx.strokeStyle='#cfe8ff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,-BALL_R*0.86); ctx.lineTo(2,-BALL_R*1.42); ctx.stroke();
-  ctx.save(); ctx.translate(2,-BALL_R*1.55); ctx.rotate(Math.PI/4); ctx.fillStyle='#ffd76a'; ctx.fillRect(-2.6,-2.6,5.2,5.2); ctx.restore();
-  // body
-  const g=ctx.createRadialGradient(-5,-6,2,0,0,BALL_R); g.addColorStop(0,'#dff3ff'); g.addColorStop(0.55,'#6cc4f2'); g.addColorStop(1,'#3b93d4'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,BALL_R,0,7); ctx.fill();
-  ctx.lineWidth=2; ctx.strokeStyle='#225e8c'; ctx.stroke();
-  ctx.strokeStyle='rgba(255,255,255,.65)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,BALL_R-2,Math.PI*1.04,Math.PI*1.5); ctx.stroke();   // rim light
-  ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(0,2.5,BALL_R*0.6,BALL_R*0.5,0,0,7); ctx.fill();   // face area
-  // eyes (look toward motion)
-  const ex=Math.max(-1.4,Math.min(1.4,b.vx*0.12)), ey=Math.max(-1.4,Math.min(1.4,b.vy*0.12));
-  for(const sgn of [-1,1]){ const ox=sgn*4.6; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(ox,-1,3,3.7,0,0,7); ctx.fill();
-    ctx.fillStyle='#12263a'; ctx.beginPath(); ctx.arc(ox+ex,-1+ey,1.8,0,7); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ox+ex-0.7,-1.8+ey,0.8,0,7); ctx.fill(); }
-  // blush
-  ctx.fillStyle='rgba(255,138,160,.5)'; ctx.beginPath(); ctx.ellipse(-7.5,3.4,2.2,1.4,0,0,7); ctx.ellipse(7.5,3.4,2.2,1.4,0,0,7); ctx.fill();
-  // smile
-  ctx.strokeStyle='#12263a'; ctx.lineWidth=1.4; ctx.lineCap='round'; ctx.beginPath(); ctx.arc(0,3.4,2.2,0.12*Math.PI,0.88*Math.PI); ctx.stroke();
+  const running=b.intro&&b.iphase===0, rising=b.vy<0;
+  const sw=Math.sin(tick*(running?0.6:0.3))*(running?3.5:2);   // limb swing (faster while running in)
+  const neckY=-3, hipY=7;
+  ctx.strokeStyle='#eef6ff'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath(); ctx.moveTo(0,neckY); ctx.lineTo(0,hipY); ctx.stroke();   // body
+  // arms: running -> swing front/back; airborne -> up (rising) / out (falling)
+  ctx.beginPath();
+  if(running){ ctx.moveTo(0,neckY+1); ctx.lineTo(-6,neckY+5+sw); ctx.moveTo(0,neckY+1); ctx.lineTo(6,neckY+5-sw); }
+  else if(rising){ ctx.moveTo(0,neckY+1); ctx.lineTo(-7,neckY-7+sw); ctx.moveTo(0,neckY+1); ctx.lineTo(7,neckY-7-sw); }
+  else { ctx.moveTo(0,neckY+1); ctx.lineTo(-8,neckY-2+sw); ctx.moveTo(0,neckY+1); ctx.lineTo(8,neckY-2-sw); }
+  ctx.stroke();
+  // legs: running -> stride; airborne -> tucked splay
+  ctx.beginPath();
+  if(running){ ctx.moveTo(0,hipY); ctx.lineTo(-6,hipY+8+sw); ctx.moveTo(0,hipY); ctx.lineTo(6,hipY+8-sw); }
+  else { ctx.moveTo(0,hipY); ctx.lineTo(-6,hipY+7+sw*0.5); ctx.moveTo(0,hipY); ctx.lineTo(6,hipY+7-sw*0.5); }
+  ctx.stroke();
+  // head
+  ctx.fillStyle='#7edcff'; ctx.strokeStyle='#cfeaff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,neckY-7,5.6,0,7); ctx.fill(); ctx.stroke();
+  const ex=Math.max(-1.2,Math.min(1.2,b.vx*0.1));
+  ctx.fillStyle='#12263a'; ctx.beginPath(); ctx.arc(-2+ex,neckY-8,1.2,0,7); ctx.arc(2.4+ex,neckY-8,1.2,0,7); ctx.fill();
   ctx.restore(); }
 function drawHUD(){ uctx.setTransform(DPR,0,0,DPR,0,0); uctx.clearRect(0,0,W,H); uctx.lineCap='round';
   if(!(playing||dead))return; const m=Math.floor(maxClimb*M_PER_PX), by=44+SAT;
