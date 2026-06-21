@@ -109,7 +109,7 @@ function fitCanvas(){ VW=Math.max(300,Math.floor(window.innerWidth)); VH=Math.ma
 window.addEventListener('resize',()=>{ fitCanvas(); layoutUI(); checkRotate(); });
 
 /* ---------- constants ---------- */
-const PR=14, R_HIT=4.6, MAX_RUN=3.7, FOCUS_RUN=1.5, ACC=0.55, FRIC=0.78, LIVES=3, IFRAME=110, WARN_T=36;
+const PR=14, R_HIT=4.6, MAX_RUN=3.7, FOCUS_RUN=1.5, ACC=0.55, FRIC=0.78, LIVES=3, IFRAME=110, WARN_T=10;
 const DIFF=[{n:'やさしい',gap:1.4,sp:0.82},{n:'ふつう',gap:1.1,sp:1.0},{n:'つよい',gap:0.88,sp:1.16}];
 let diff=1;
 /* ---------- save ---------- */
@@ -146,8 +146,8 @@ const PADR=()=>Math.max(50,Math.min(W,H)*0.145);
 let player=null, warns=[], bullets=[], puffs=[], stars=[];
 let surviveT=0, level=0, lives=LIVES, playing=false, dead=false, volleyT=70;
 function makePlayer(){ return {x:(AX0+AX1)/2, y:(AY0+AY1)/2+40, vx:0, vy:0, focus:false, invuln:80}; }
-function resetWorld(){ player=makePlayer(); bullets=[]; warns=[]; puffs=[]; surviveT=0; level=0; lives=LIVES; dead=false; volleyT=70;
-  stars=[]; for(let i=0;i<46;i++) stars.push({x:Math.random()*W,y:AY0+Math.random()*(AY1-AY0),r:0.6+Math.random()*1.3,a:Math.random()*7}); }
+function resetWorld(){ player=makePlayer(); bullets=[]; warns=[]; puffs=[]; surviveT=0; level=0; lives=LIVES; dead=false; volleyT=150;
+  stars=[]; for(let i=0;i<74;i++){ const far=i<48; stars.push({x:Math.random()*W,y:AY0+Math.random()*(AY1-AY0),r:far?1:2,a:Math.random()*7,sp:far?0.12:0.4,far}); } }
 
 /* ---------- input ---------- */
 const pad={a:false,id:-1,bx:0,by:0,tx:0,ty:0}; let slowBtn={x:0,y:0,r:0,held:false,id:-1};
@@ -174,7 +174,7 @@ function spawnVolley(){ const D=DIFF[diff]||DIFF[1], sp=(0.85+level*0.08)*D.sp, 
   else if(side===1){ oy=AY0+Math.random()*(AY1-AY0)*0.85; ox=AX0-off; mx=AX0+14; my=oy; }
   else { oy=AY0+Math.random()*(AY1-AY0)*0.85; ox=AX1+off; mx=AX1-14; my=oy; }
   let n = kind==='ring'?(8+Math.min(8,level)):(kind==='homing'?(2+Math.min(2,level/2|0)):(3+Math.min(4,Math.floor(level/1.5))));
-  if(surviveT<480) n=Math.min(n, kind==='ring'?6:3);   // gentle start
+  if(surviveT<480) n=Math.min(n, kind==='ring'?6:3); if(surviveT<240) n=Math.min(n, kind==='ring'?5:2);   // gentle start
   warns.push({ox,oy,mx,my,kind,n,sp,col,t:WARN_T,ang:Math.atan2(player.y-oy,player.x-ox)}); sfxWarn(); }
 function emitVolley(v){
   if(v.kind==='wall'){ const gw=Math.max(74,118-level*4); for(let x=AX0+18;x<=AX1-18;x+=32){ if(Math.abs(x-v.gap)<gw/2)continue; shoot(x,AY0-18,1.5708,v.sp,v.col,5); } sfxShot(); return; }
@@ -206,7 +206,7 @@ function step(){ surviveT++; const D=DIFF[diff]||DIFF[1];
   player.x=Math.max(AX0+PR,Math.min(AX1-PR,player.x)); player.y=Math.max(AY0+PR,Math.min(AY1-PR,player.y));
   if(player.invuln>0)player.invuln--;
   // schedule volleys
-  if(--volleyT<=0){ if(bullets.length<240) spawnVolley(); const early=surviveT<780?(2.0-surviveT/780):1; volleyT=Math.max(30,Math.round((66-level*4)*D.gap*early)); }   // sparse first ~13s, then ramp
+  if(--volleyT<=0){ if(bullets.length<240) spawnVolley(); const early=surviveT<900?(2.6-surviveT/900*1.6):1; volleyT=Math.max(30,Math.round((66-level*4)*D.gap*early)); }   // very sparse at first, eases in over ~15s
   for(let i=warns.length-1;i>=0;i--){ if(--warns[i].t<=0){ emitVolley(warns[i]); warns.splice(i,1); } }
   // bullets — slow base velocity + gentle perpendicular sway = ふわふわ
   for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i];
@@ -227,8 +227,8 @@ function draw(){ ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,BW,BH);
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0a1326'); g.addColorStop(1,'#101a32'); ctx.fillStyle=g; ctx.fillRect(-20,-20,W+40,H+40);
   drawArena();
   ctx.save(); rr(ctx,AX0,AY0,AX1-AX0,AY1-AY0,18); ctx.clip();
-  for(const s of stars){ s.y+=0.35; if(s.y>AY1)s.y=AY0; ctx.globalAlpha=0.14+0.14*Math.sin(tick*0.05+s.a); ctx.fillStyle='#8197b8'; ctx.fillRect(s.x|0,s.y|0,s.r+1,s.r+1); } ctx.globalAlpha=1;
-  for(const v of warns) drawWarn(v);
+  drawNebula();
+  for(const s of stars){ s.y+=s.sp; if(s.y>AY1)s.y=AY0; ctx.globalAlpha=(s.far?0.10:0.22)+(s.far?0.05:0.12)*Math.sin(tick*0.05+s.a); ctx.fillStyle=s.far?'#5f6f8c':'#9fb6d8'; ctx.fillRect(s.x|0,s.y|0,s.r,s.r); } ctx.globalAlpha=1;
   for(const b of bullets){
     for(let k=2;k>=1;k--){ ctx.globalAlpha=0.16/k; ctx.fillStyle=b.col; ctx.beginPath(); ctx.arc(b.x-b.vx*k*1.7,b.y-b.vy*k*1.7,b.r*(0.85-0.15*k),0,7); ctx.fill(); } ctx.globalAlpha=1;   // floaty trail
     ctx.globalAlpha=.16; ctx.fillStyle=b.col; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*1.9,0,7); ctx.fill(); ctx.globalAlpha=1;
@@ -245,17 +245,14 @@ function draw(){ ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,BW,BH);
 }
 function drawArena(){ const w=AX1-AX0,h=AY1-AY0;
   const g=ctx.createLinearGradient(0,AY0,0,AY1); g.addColorStop(0,'#15233f'); g.addColorStop(0.5,'#0f1a32'); g.addColorStop(1,'#0b1428'); ctx.fillStyle=g; rr(ctx,AX0,AY0,w,h,18); ctx.fill();
-  ctx.save(); rr(ctx,AX0,AY0,w,h,18); ctx.clip(); ctx.strokeStyle='rgba(126,180,255,.06)'; ctx.lineWidth=1;
+  ctx.save(); rr(ctx,AX0,AY0,w,h,18); ctx.clip(); ctx.strokeStyle='rgba(126,180,255,.04)'; ctx.lineWidth=1;
   for(let x=AX0+36;x<AX1;x+=36){ ctx.beginPath(); ctx.moveTo(x,AY0); ctx.lineTo(x,AY1); ctx.stroke(); }
   for(let y=AY0+36;y<AY1;y+=36){ ctx.beginPath(); ctx.moveTo(AX0,y); ctx.lineTo(AX1,y); ctx.stroke(); } ctx.restore();
   ctx.lineWidth=2; ctx.strokeStyle='rgba(126,200,255,.55)'; rr(ctx,AX0,AY0,w,h,18); ctx.stroke(); }
-function drawWarn(v){ const u=Math.max(0,Math.min(1,1-v.t/WARN_T)), bl=Math.floor(tick*0.5)%2===0;   // edge telegraph that grows + blinks
-  ctx.save(); ctx.translate(v.mx,v.my); ctx.rotate(v.ang);
-  ctx.globalAlpha=(bl?0.9:0.45); ctx.fillStyle='#ff5a4a'; const s=6+u*8;
-  ctx.beginPath(); ctx.moveTo(s,0); ctx.lineTo(-s*0.7,-s*0.7); ctx.lineTo(-s*0.7,s*0.7); ctx.closePath(); ctx.fill();
-  ctx.globalAlpha=0.5; ctx.strokeStyle='#ffd0c0'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore(); ctx.globalAlpha=1;
-  // faint incoming-line cue toward player
-  ctx.globalAlpha=0.12+0.1*u; ctx.strokeStyle='#ff7a5a'; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.beginPath(); ctx.moveTo(v.mx,v.my); ctx.lineTo(v.mx+Math.cos(v.ang)*40*u,v.my+Math.sin(v.ang)*40*u); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1; }
+const NEB=[[0.28,0.24,'rgba(86,120,205,0.11)'],[0.74,0.46,'rgba(150,92,205,0.10)'],[0.5,0.82,'rgba(58,165,170,0.09)']];
+function drawNebula(){ const w=AX1-AX0,h=AY1-AY0,rr2=Math.min(w,h)*0.62;
+  for(let i=0;i<NEB.length;i++){ const b=NEB[i], cx=AX0+w*b[0]+Math.sin(tick*0.004+i)*26, cy=AY0+h*b[1]+Math.cos(tick*0.005+i*2)*26;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rr2); g.addColorStop(0,b[2]); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.fillRect(AX0,AY0,w,h); } }
 function drawPlayer(){ const p=player; ctx.save(); ctx.translate(p.x,p.y); const blink=p.invuln>0&&Math.floor(tick*0.4)%2===0;
   ctx.globalAlpha=blink?0.05:(p.focus?.2:.13); ctx.fillStyle='#7edcff'; ctx.beginPath(); ctx.arc(0,0,PR*1.8,0,7); ctx.fill(); ctx.globalAlpha=1;
   ctx.fillStyle='rgba(4,9,20,.35)'; ctx.beginPath(); ctx.ellipse(0,PR*0.92,PR*0.78,PR*0.3,0,0,7); ctx.fill();
