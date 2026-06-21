@@ -192,7 +192,7 @@ function buildArena(){
   // cover walls mirrored top/bottom per the current map
   forts=[]; const t=Math.max(18,Math.min(W,H)*0.02);
   const add=(x,y,w,h)=>forts.push({x:x-w/2,y:y-h/2,w,h});
-  [-1,1].forEach(s=>{ for(const [fx,fy,fw] of curMap.f){ add(W*fx, FH/2+s*FH*fy, W*fw, t); } });
+  [-1,1].forEach(s=>{ for(const [fx,fy,fw] of curMap.f){ add(W*fx, FH/2+s*FH*Math.min(fy,0.22), W*fw, t); } });   // keep walls central, clear of spawn rows
   // decorations (within the field, away from the river)
   snowflakes=[]; for(let i=0;i<60;i++) snowflakes.push({x:Math.random()*W,y:Math.random()*FH,r:0.6+Math.random()*1.6,a:Math.random()*7});
   bumps=[]; for(let i=0;i<30;i++) bumps.push({x:Math.random()*W,y:Math.random()*FH,r:6+Math.random()*16});
@@ -201,7 +201,10 @@ function buildArena(){
 /* ---------- entities ---------- */
 let units=[], balls=[], puffs=[], me=null;
 function makeUnit(team,idx,human){ const b=bases[team], dir=team===0?-1:1;   // team0 bottom faces up
-  return {team,idx,human,x:b.x+(idx-1)*62,y:b.y+dir*26,vx:0,vy:0,hp:HP,dead:false,reviveT:0,
+  let x=Math.max(PR+4,Math.min(W-PR-4,b.x+(idx-1)*62)), y=b.y+dir*26, g=0;
+  while(inFort(x,y,PR*0.7) && g++<40){ y-=dir*6; }   // never spawn inside a wall (nudge toward own edge)
+  y=Math.max(PR, Math.min(FH-PR, y));
+  return {team,idx,human,x,y,vx:0,vy:0,hp:HP,dead:false,reviveT:0,
           ammo:AMMO_MAX,regen:0,cd:0,face:team===0?-Math.PI/2:Math.PI/2,flash:0,role:idx===0?'attack':(idx===1?'mid':'defend'),
           aiThrow:0}; }
 function resetUnits(){ units=[]; for(let t=0;t<2;t++)for(let i=0;i<TEAM;i++) units.push(makeUnit(t,i, t===0&&i===0)); me=units[0]; }
@@ -260,8 +263,9 @@ function stepRevive(){ for(const d of units){ if(!d.dead)continue;
 function moveUnit(u,mx,my){ if(u.dead)return;
   u.vx+=(mx*MOVE-u.vx)*0.2; u.vy+=(my*MOVE-u.vy)*0.2;
   // collide with forts (axis separated)
-  let nx=u.x+u.vx; if(!inFort(nx,u.y,PR*0.7))u.x=nx; else u.vx*=-0.2;
-  let ny=u.y+u.vy; if(!inFort(u.x,ny,PR*0.7))u.y=ny; else u.vy*=-0.2;
+  const stuck=inFort(u.x,u.y,PR*0.7);   // if already inside a wall, allow escape
+  let nx=u.x+u.vx; if(stuck||!inFort(nx,u.y,PR*0.7))u.x=nx; else u.vx*=-0.2;
+  let ny=u.y+u.vy; if(stuck||!inFort(u.x,ny,PR*0.7))u.y=ny; else u.vy*=-0.2;
   u.x=Math.max(PR,Math.min(W-PR,u.x));
   const rb=riverBand();                                  // confine each team to its own half (can't cross the river)
   if(u.team===0) u.y=Math.max(rb.b+PR*0.5, Math.min(FH-PR, u.y));
