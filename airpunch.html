@@ -200,6 +200,9 @@ function stepP(p,mvx,mvy){ if(p.respawn>0){ p.respawn--; if(p.respawn<=0)resetP(
   if(p.punch>0)p.punch=Math.max(0,p.punch-0.1); if(p.flash>0)p.flash=Math.max(0,p.flash-0.07); if(p.cd>0)p.cd--;
   if(norm(p.x,p.y)>1.04 && p.fall===0){ p.fall=1; }   // walked / knocked off the edge -> falling
 }
+function separate(){ const a=P[0],b=P[1]; if(!a||!b||a.fall>0||b.fall>0||a.respawn>0||b.respawn>0)return;
+  let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||0.01; const min=PR*1.7;
+  if(d<min){ const push=(min-d)/2, nx=dx/d, ny=dy/d; a.x-=nx*push; a.y-=ny*push; b.x+=nx*push; b.y+=ny*push; } }
 function ringOut(p){ const scorer=1-p.side; score[scorer]++; sfxOut(); shake=Math.max(shake,9);
   banner=(scorer===0?'おとした！':'おちた…'); bannerT=70;
   if(score[scorer]>=WIN_PTS){ endGame(scorer); return; }
@@ -325,7 +328,7 @@ let playing=false;
 function loop(){ tick++; if(bannerT>0)bannerT--;
   if(intro>0){ intro--; stepPuffs(); draw(); requestAnimationFrame(loop); return; }
   if(hitstop>0){ hitstop--; stepPuffs(); draw(); requestAnimationFrame(loop); return; }
-  if(playing){ controlHuman(); controlAI(P[1]); for(let i=blasts.length-1;i>=0;i--){ if(--blasts[i].life<=0)blasts.splice(i,1); } stepPuffs(); }
+  if(playing){ controlHuman(); controlAI(P[1]); separate(); for(let i=blasts.length-1;i>=0;i--){ if(--blasts[i].life<=0)blasts.splice(i,1); } stepPuffs(); }
   else stepPuffs();
   draw(); requestAnimationFrame(loop);
 }
