@@ -41,8 +41,8 @@
   #stage::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:2; background:radial-gradient(135% 135% at 50% 42%, #0000 58%, #00000055 100%); }
   #rotate{ position:fixed; inset:0; z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:#070d18; text-align:center; }
   #rotate.show{ display:flex; }
-  #rotate .phone{ width:74px; height:46px; border:3px solid var(--tx2); border-radius:9px; animation:rot 1.8s ease-in-out infinite; }
-  @keyframes rot{ 0%,40%{transform:rotate(0)} 60%,100%{transform:rotate(-90deg)} }
+  #rotate .phone{ width:46px; height:74px; border:3px solid var(--tx2); border-radius:9px; animation:rot 1.8s ease-in-out infinite; }
+  @keyframes rot{ 0%,40%{transform:rotate(-90deg)} 60%,100%{transform:rotate(0)} }
   #rotate h2{ font-family:"Orbitron"; color:var(--tx); letter-spacing:3px; }
   #muteBtn{ position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px; z-index:50; width:40px; height:40px; display:grid; place-items:center;
     border-radius:12px; cursor:pointer; color:#cfe2f7; background:rgba(9,17,32,.66); border:1px solid rgba(126,220,255,.24); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
@@ -76,7 +76,7 @@
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas><canvas id="ui"></canvas></div>
-<div id="rotate"><div class="phone"></div><h2>PLEASE ROTATE</h2><p>横画面（ヨコ向き）でプレイしてください</p></div>
+<div id="rotate"><div class="phone"></div><h2>PLEASE ROTATE</h2><p>縦画面（タテ向き）でプレイしてください</p></div>
 <button id="muteBtn" aria-label="sound"></button>
 <div id="overlay"><div class="inner">
   <div class="tagline" id="tagline">TOP-DOWN · BACK-PUNCH RING-OUT</div>
@@ -140,7 +140,7 @@ function setMuted(m){ muted=m; try{localStorage.setItem('bp_mute',m?'1':'0');}ca
 
 /* ---------- stage (top-down ellipse platform) ---------- */
 let SX=0,SY=0,RX=0,RY=0,bgdots=[];
-function computeStage(){ SX=W/2; SY=Math.round(H*0.42); RX=Math.min(W*0.40,520); RY=Math.min(H*0.31,280);
+function computeStage(){ SX=W/2; SY=Math.round(H*0.43); RX=Math.min(W*0.44,420); RY=Math.min(H*0.30,360);
   bgdots=[]; for(let i=0;i<60;i++){ const a=Math.random()*7,r=Math.sqrt(Math.random()); bgdots.push({x:SX+Math.cos(a)*r*RX*0.92,y:SY+Math.sin(a)*r*RY*0.92,s:1+Math.random()*2}); } }
 function norm(x,y){ const dx=(x-SX)/RX, dy=(y-SY)/RY; return dx*dx+dy*dy; }   // <=1 on stage
 
@@ -347,7 +347,7 @@ const ICON_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const ICON_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg>';
 function refreshMute(){ muteBtn.innerHTML=muted?ICON_OFF:ICON_ON; muteBtn.style.color=muted?'#7f93b0':'#cfe2f7'; }
 muteBtn.onclick=()=>{ actx(); setMuted(!muted); refreshMute(); }; refreshMute();
-function checkRotate(){ document.getElementById('rotate').classList.toggle('show', window.innerHeight>window.innerWidth && 'ontouchstart' in window); }
+function checkRotate(){ document.getElementById('rotate').classList.toggle('show', window.innerWidth>window.innerHeight && 'ontouchstart' in window); }
 window.addEventListener('orientationchange',()=>setTimeout(()=>{fitCanvas();layoutUI();checkRotate();},200));
 fitCanvas(); layoutUI(); renderOpts(); checkRotate(); loop();
 </script>
