@@ -114,7 +114,7 @@ const BALL_R=14, GRAV=0.19, MAXV=19, WALL_REST=0.62;
 const TRAMP_E=1.09, MIN_BOUNCE=11.5;           // restitution + guaranteed min upward bounce speed (floaty)
 const LINE_MAX=150, MIN_LINE=14, MAX_LINES=2;  // length cap, min drawable, persistent line count
 const INK_MAX=100, INK_COST=0.32, INK_REGEN=0.32, INK_BUCKET=70;   // ink economy
-const SPIKE_DEPTH=15;
+const SPIKE_DEPTH=15, FLOOR_H=10;
 let AX0=0,AX1=0;
 function computeArena(){ AX0=16; AX1=W-16; }
 const M_PER_PX=1/28;   // height -> meters
@@ -182,7 +182,12 @@ function substep(dt){ ball.vy+=GRAV*dt; const sp=Math.hypot(ball.vx,ball.vy); if
   ball.x+=ball.vx*dt; ball.y+=ball.vy*dt;
   if(ball.x<AX0+BALL_R){ ball.x=AX0+BALL_R; ball.vx=Math.abs(ball.vx)*WALL_REST; }
   if(ball.x>AX1-BALL_R){ ball.x=AX1-BALL_R; ball.vx=-Math.abs(ball.vx)*WALL_REST; }
-  let bounced=false; for(const ln of lines){ if(bounceLine(ln))bounced=true; } return bounced; }
+  let bounced=false; for(const ln of lines){ if(bounceLine(ln))bounced=true; }
+  for(const z of hazards){ if(z.type!=='floor')continue; if(ball.x>z.gx-z.gw/2 && ball.x<z.gx+z.gw/2)continue;   // gap = pass through
+    if(Math.abs(ball.y-z.y)<FLOOR_H/2+BALL_R){
+      if(ball.y<=z.y){ ball.y=z.y-FLOOR_H/2-BALL_R; if(ball.vy>0){ ball.vy=-Math.max(MIN_BOUNCE*0.72,ball.vy*0.86); bounced=true; } }   // land on top -> bounce
+      else { ball.y=z.y+FLOOR_H/2+BALL_R; if(ball.vy<0) ball.vy=Math.abs(ball.vy)*0.5; } } }   // hit underside -> bonk down
+  return bounced; }
 function stepIntro(){ const b=ball;
   if(b.iphase===0){ b.x+=3.4; b.vx=3.4; b.y=startY-6+Math.sin(tick*0.4)*3; if(b.x>=W*0.5-16){ b.x=W*0.5-16; b.vx=0; b.iphase=1; b.it=16; } }   // run across the roof to its edge
   else if(b.iphase===1){ b.vy=0; if(--b.it<=0){ b.iphase=2; b.vy=-3.4; } }   // little crouch, then leap
@@ -217,9 +222,10 @@ function genHazards(){ const top=camY-H*0.5;   // generate up to half a screen a
     if(h>500 && Math.random()<0.1) hazards.push({type:'spring',x:AX0+28+Math.random()*(AX1-AX0-56),y:nextGenY-gap*0.5,cd:0});   // spring pad (super jump)
     if(Math.random()<0.14) gems.push({x:AX0+30+Math.random()*(AX1-AX0-60),y:nextGenY-gap*0.62,ink:true});   // ink bucket
     nextGenY-=gap; } }
-function spawnBand(y,h){ const r=Math.random();
-  if(r<0.34){ const side=Math.random()<0.5?0:1; hazards.push({type:'spikeWall',side,y,h:60+Math.random()*70}); }
-  else if(r<0.64){ const span=AX1-AX0, gw=Math.max(82,150-h*0.02), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'bar',y,gx,gw}); }
+function spawnBand(y,h){ const r=Math.random(), span=AX1-AX0;
+  if(r<0.28){ const side=Math.random()<0.5?0:1; hazards.push({type:'spikeWall',side,y,h:60+Math.random()*70}); }
+  else if(r<0.5){ const gw=Math.max(82,150-h*0.02), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'bar',y,gx,gw}); }   // deadly spikes
+  else if(r<0.74){ const gw=Math.max(74,140-h*0.018), gx=AX0+gw*0.6+Math.random()*(span-gw*1.2); hazards.push({type:'floor',y,gx,gw}); }   // solid floor (bounce, not deadly)
   else { const baseX=AX0+30+Math.random()*(AX1-AX0-60); hazards.push({type:'saw',y,x:baseX,baseX,r:19,range:30+Math.random()*70,dir:Math.random()<0.5?1:-1,ph:Math.random()*7,spd:0.01+Math.random()*0.02}); } }
 function stepHazards(){ for(const z of hazards){ if(z.type==='saw'){ z.ph+=z.spd; z.x=z.baseX+Math.sin(z.ph)*z.range; } else if(z.type==='meteor'){ z.x+=z.vx; z.y+=z.vy; } else if(z.type==='spring'&&z.cd>0){ z.cd--; } }
   for(let i=hazards.length-1;i>=0;i--){ const z=hazards[i]; if(z.y>camY+H+260 || (z.type==='meteor'&&(z.x<AX0-70||z.x>AX1+70))) hazards.splice(i,1); }
@@ -322,6 +328,11 @@ function drawHazard(z){ const HZ='#e84855', gl=2+Math.min(1,maxClimb/4500)*5;   
     ctx.globalAlpha=.16; ctx.fillStyle=HZ; ctx.beginPath(); ctx.arc(0,0,z.r+10,0,7); ctx.fill(); ctx.globalAlpha=1;   // danger halo
     ctx.rotate(tick*0.2*z.dir); ctx.fillStyle='#9aa6bf'; const teeth=8; for(let i=0;i<teeth;i++){ const a=i/teeth*Math.PI*2; ctx.beginPath(); ctx.moveTo(Math.cos(a)*z.r,Math.sin(a)*z.r); ctx.lineTo(Math.cos(a+0.4)*(z.r+6),Math.sin(a+0.4)*(z.r+6)); ctx.lineTo(Math.cos(a+0.8)*z.r,Math.sin(a+0.8)*z.r); ctx.closePath(); ctx.fill(); }
     ctx.fillStyle='#5a6680'; ctx.beginPath(); ctx.arc(0,0,z.r,0,7); ctx.fill(); ctx.fillStyle=HZ; ctx.beginPath(); ctx.arc(0,0,z.r*0.28,0,7); ctx.fill(); ctx.restore(); }
+  else if(z.type==='floor'){ const gx0=z.gx-z.gw/2, gx1=z.gx+z.gw/2;   // solid steel floor with a safe gap (not deadly)
+    ctx.fillStyle='#68758c'; ctx.fillRect(AX0,z.y-5,gx0-AX0,10); ctx.fillRect(gx1,z.y-5,AX1-gx1,10);
+    ctx.fillStyle='#9aa6bd'; ctx.fillRect(AX0,z.y-5,gx0-AX0,2); ctx.fillRect(gx1,z.y-5,AX1-gx1,2);
+    ctx.fillStyle='#3a4456'; for(let x=AX0+8;x<gx0-4;x+=16) ctx.fillRect(x,z.y-1,2,2); for(let x=gx1+8;x<AX1-4;x+=16) ctx.fillRect(x,z.y-1,2,2);
+    ctx.strokeStyle='#73d88c'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(gx0+6,z.y-9); ctx.lineTo(gx0,z.y-9); ctx.lineTo(gx0,z.y+9); ctx.lineTo(gx0+6,z.y+9); ctx.moveTo(gx1-6,z.y-9); ctx.lineTo(gx1,z.y-9); ctx.lineTo(gx1,z.y+9); ctx.lineTo(gx1-6,z.y+9); ctx.stroke(); }
   else if(z.type==='spring'){ ctx.save(); ctx.translate(z.x,z.y); const c=z.cd>0?6:0;
     ctx.fillStyle='#39465c'; ctx.fillRect(-16,10,32,4);
     ctx.strokeStyle='#7be0a0'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-9,10); for(let i=0;i<3;i++){ ctx.lineTo(9,6-i*4+c); ctx.lineTo(-9,2-i*4+c); } ctx.stroke();
