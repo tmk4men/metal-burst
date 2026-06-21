@@ -150,7 +150,7 @@ function substep(dt){ ball.vy+=GRAV*dt; const sp=Math.hypot(ball.vx,ball.vy); if
   if(ball.x>AX1-BALL_R){ ball.x=AX1-BALL_R; ball.vx=-Math.abs(ball.vx)*WALL_REST; }
   let bounced=false; for(const ln of lines){ if(bounceLine(ln))bounced=true; } return bounced; }
 function stepIntro(){ const b=ball;
-  if(b.iphase===0){ b.x+=3.4; b.vx=3.4; b.y=startY-6+Math.sin(tick*0.4)*4; if(b.x>=W*0.5){ b.x=W*0.5; b.vx=0; b.iphase=1; b.it=16; } }   // run in from the left
+  if(b.iphase===0){ b.x+=3.4; b.vx=3.4; b.y=startY-6+Math.sin(tick*0.4)*3; if(b.x>=W*0.5-16){ b.x=W*0.5-16; b.vx=0; b.iphase=1; b.it=16; } }   // run across the roof to its edge
   else if(b.iphase===1){ b.vy=0; if(--b.it<=0){ b.iphase=2; b.vy=-3.4; } }   // little crouch, then leap
   else { b.vy+=GRAV; b.y+=b.vy; if(b.vy>0.5){ b.intro=false; } } }            // jump off -> hand over to play
 function step(){ tick++;
@@ -217,7 +217,7 @@ function draw(){ ctx.setTransform(DPR,0,0,DPR,0,0);
   drawBackground();
   ctx.save(); if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.85; } else shake=0;
   ctx.save(); ctx.translate(0,-camY);
-  drawWalls(); drawAltitude(); for(const z of hazards) drawHazard(z); drawLines(); if(ball&&!dead) drawBall();
+  drawWalls(); drawStartHouse(); drawAltitude(); for(const z of hazards) drawHazard(z); drawLines(); if(ball&&!dead) drawBall();
   for(const p of puffs){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c; ctx.fillRect((p.x-p.r)|0,(p.y-p.r)|0,(p.r*2)|0,(p.r*2)|0); } ctx.globalAlpha=1;
   ctx.restore();
   ctx.restore();
@@ -229,8 +229,23 @@ function drawWalls(){ const top=camY-20, bot=camY+H+20, wh=bot-top;
   ctx.fillStyle='rgba(126,200,255,.22)'; ctx.fillRect(AX0-2,top,2,wh); ctx.fillRect(AX1,top,2,wh);
   ctx.fillStyle='rgba(126,200,255,.1)'; const rs=42, off=((top%rs)+rs)%rs; for(let y=top-off;y<bot;y+=rs){ ctx.fillRect(AX0-9,y,3,3); ctx.fillRect(AX1+6,y,3,3); }   // rivets
   ctx.fillStyle='rgba(126,220,255,.08)'; ctx.fillRect(AX0,top,4,wh); ctx.fillRect(AX1-4,top,4,wh);   // inner edge highlight
-  if(startY+24>camY && startY-24<camY+H){ ctx.globalAlpha=0.85+Math.sin(tick*0.08)*0.12; ctx.fillStyle='#7be0a0'; rr(ctx,W/2-48,startY+6,96,7,3); ctx.fill(); ctx.globalAlpha=1;
-    ctx.fillStyle='rgba(123,224,160,.5)'; for(let x=-40;x<=40;x+=12) ctx.fillRect(W/2+x,startY+8,5,3); }   // launch pad
+}
+function drawStartHouse(){ if(startY-camY>H+130) return;   // a house on a steel frame; the mascot leaps from its roof (start only)
+  const hx0=AX0, hx1=W*0.5, ridgeY=startY+8, eaveY=startY+20, wallBot=startY+84, rlx=hx0+14, rrx=hx1-14;
+  // steel-frame legs (鉄骨)
+  ctx.strokeStyle='#586074'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(hx0+14,wallBot); ctx.lineTo(hx0+14,wallBot+66); ctx.moveTo(hx1-14,wallBot); ctx.lineTo(hx1-14,wallBot+66); ctx.stroke();
+  ctx.strokeStyle='#3f4659'; ctx.lineWidth=2; let up=true; for(let y=wallBot+2;y<wallBot+66-15;y+=15){ ctx.beginPath(); ctx.moveTo(hx0+14,up?y:y+15); ctx.lineTo(hx1-14,up?y+15:y); ctx.stroke(); up=!up; }
+  // house wall + windows + door
+  ctx.fillStyle='#c9a46e'; ctx.fillRect(hx0,eaveY,hx1-hx0,wallBot-eaveY);
+  ctx.fillStyle='#b08f5c'; ctx.fillRect(hx0,wallBot-6,hx1-hx0,6);
+  ctx.fillStyle='#ffe08a'; ctx.fillRect(hx0+12,eaveY+12,15,15); ctx.fillRect(hx1-27,eaveY+12,15,15);
+  ctx.strokeStyle='#7a5f36'; ctx.lineWidth=2; ctx.strokeRect(hx0+12,eaveY+12,15,15); ctx.strokeRect(hx1-27,eaveY+12,15,15);
+  ctx.fillStyle='#6e4f2c'; ctx.fillRect((hx0+hx1)/2-9,wallBot-24,18,24);
+  ctx.fillStyle='#ffd24a'; ctx.beginPath(); ctx.arc((hx0+hx1)/2+5,wallBot-12,1.5,0,7); ctx.fill();   // door knob
+  // roof (trapezoid; flat ridge = run/leap surface)
+  ctx.fillStyle='#9a4a3a'; ctx.beginPath(); ctx.moveTo(hx0-6,eaveY); ctx.lineTo(rlx,ridgeY); ctx.lineTo(rrx,ridgeY); ctx.lineTo(hx1+6,eaveY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#b25a47'; ctx.fillRect(rlx,ridgeY,rrx-rlx,3);   // ridge cap
+  ctx.fillStyle='#7a5f36'; ctx.fillRect(rrx-12,ridgeY-13,8,13);   // chimney
 }
 function drawAltitude(){ const step=280, vmax=Math.floor((startY-camY)/step), vmin=Math.max(1,Math.ceil((startY-(camY+H))/step));
   ctx.font='8px "Press Start 2P",monospace'; ctx.textAlign='right'; ctx.textBaseline='middle';
