@@ -66,7 +66,7 @@
   <div id="opts">
     <div class="best" id="bestLine"></div>
     <div class="howlist" id="howlist">
-      <div class="howrow"><span class="ic" id="icDraw"></span><span>画面を<b>なぞって</b>トランポリンを描く（線は<b>最新2本</b>だけ残る）</span></div>
+      <div class="howrow"><span class="ic" id="icDraw"></span><span>画面を<b>なぞって</b>トランポリンを描く（<b>最新2本</b>・各<b>2回</b>踏むと壊れる）</span></div>
       <div class="howrow"><span class="ic" id="icUp"></span><span>落ちてくるキャラを<b>跳ね上げて</b>、できるだけ<b>高く</b>登れ！</span></div>
       <div class="howrow"><span class="ic" id="icSpike"></span><span><b>トゲ・ノコギリ</b>に当たる／<b>画面下に落ちる</b>とミス。</span></div>
     </div>
@@ -133,7 +133,7 @@ function onMove(e){ if(!drawing||e.pointerId!==drawId)return; const p=toW(e); le
   if(len>LINE_MAX){ dx*=LINE_MAX/len; dy*=LINE_MAX/len; } curLine.x2=curLine.x1+dx; curLine.y2=curLine.y1+dy; e.preventDefault(); }
 function onUp(e){ if(!drawing||e.pointerId!==drawId)return; drawing=false; drawId=-1;
   const len=Math.hypot(curLine.x2-curLine.x1,curLine.y2-curLine.y1);
-  if(len>=MIN_LINE){ lines.push({x1:curLine.x1,y1:curLine.y1,x2:curLine.x2,y2:curLine.y2,born:tick}); if(lines.length>MAX_LINES){ const r=lines.shift(); puff((r.x1+r.x2)/2,(r.y1+r.y2)/2,'#7edcff',8); } sfxDraw(); }
+  if(len>=MIN_LINE){ lines.push({x1:curLine.x1,y1:curLine.y1,x2:curLine.x2,y2:curLine.y2,born:tick,hits:0}); if(lines.length>MAX_LINES){ const r=lines.shift(); puff((r.x1+r.x2)/2,(r.y1+r.y2)/2,'#7edcff',8); } sfxDraw(); }
   curLine=null; }
 cv.addEventListener('pointerdown',onDown); window.addEventListener('pointermove',onMove,{passive:false});
 window.addEventListener('pointerup',onUp); window.addEventListener('pointercancel',onUp);
@@ -141,9 +141,9 @@ window.addEventListener('pointerup',onUp); window.addEventListener('pointercance
 /* ---------- physics ---------- */
 function closestOnSeg(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1, L=dx*dx+dy*dy; let t=L?((px-x1)*dx+(py-y1)*dy)/L:0; t=Math.max(0,Math.min(1,t)); return {x:x1+dx*t,y:y1+dy*t}; }
 function bounceLine(ln){ const c=closestOnSeg(ball.x,ball.y,ln.x1,ln.y1,ln.x2,ln.y2); let nx=ball.x-c.x,ny=ball.y-c.y,dist=Math.hypot(nx,ny);
-  if(dist>BALL_R||dist<0.0001)return false; nx/=dist; ny/=dist; const vn=ball.vx*nx+ball.vy*ny;
-  if(vn<0){ ball.vx-=(1+TRAMP_E)*vn*nx; ball.vy-=(1+TRAMP_E)*vn*ny; const vn2=ball.vx*nx+ball.vy*ny; if(vn2<MIN_BOUNCE){ ball.vx+=(MIN_BOUNCE-vn2)*nx; ball.vy+=(MIN_BOUNCE-vn2)*ny; } }
-  ball.x=c.x+nx*BALL_R; ball.y=c.y+ny*BALL_R; ball.squash=1.25; return true; }
+  if(dist>BALL_R||dist<0.0001)return false; nx/=dist; ny/=dist; const vn=ball.vx*nx+ball.vy*ny; let did=false;
+  if(vn<0){ ball.vx-=(1+TRAMP_E)*vn*nx; ball.vy-=(1+TRAMP_E)*vn*ny; const vn2=ball.vx*nx+ball.vy*ny; if(vn2<MIN_BOUNCE){ ball.vx+=(MIN_BOUNCE-vn2)*nx; ball.vy+=(MIN_BOUNCE-vn2)*ny; } ln.hits=(ln.hits||0)+1; did=true; }
+  ball.x=c.x+nx*BALL_R; ball.y=c.y+ny*BALL_R; if(did)ball.squash=1.25; return did; }
 function substep(dt){ ball.vy+=GRAV*dt; const sp=Math.hypot(ball.vx,ball.vy); if(sp>MAXV){ ball.vx*=MAXV/sp; ball.vy*=MAXV/sp; }
   ball.x+=ball.vx*dt; ball.y+=ball.vy*dt;
   if(ball.x<AX0+BALL_R){ ball.x=AX0+BALL_R; ball.vx=Math.abs(ball.vx)*WALL_REST; }
@@ -152,6 +152,7 @@ function substep(dt){ ball.vy+=GRAV*dt; const sp=Math.hypot(ball.vx,ball.vy); if
 function step(){ tick++;
   let bounced=false; for(let s=0;s<3;s++){ if(substep(1/3))bounced=true; }
   if(bounced){ const sp=Math.hypot(ball.vx,ball.vy); sfxBounce(Math.min(1,sp/MAXV)); puff(ball.x,ball.y,'#9af0bb',14); if(sp>13)shake=Math.max(shake,3); }
+  for(let i=lines.length-1;i>=0;i--){ if(lines[i].hits>=2){ const r=lines[i]; puff((r.x1+r.x2)/2,(r.y1+r.y2)/2,'#ffd76a',12); lines.splice(i,1); } }   // each trampoline breaks after 2 bounces
   ball.spin+=ball.vx*0.02; if(ball.squash>0)ball.squash*=0.82;
   // camera (only climbs)
   const target=ball.y-H*0.42; if(target<camY) camY+=(target-camY)*0.20;
@@ -229,7 +230,9 @@ function drawHazard(z){ const HZ='#ff3f66';
     ctx.rotate(tick*0.2*z.dir); ctx.fillStyle='#9aa6bf'; const teeth=8; for(let i=0;i<teeth;i++){ const a=i/teeth*Math.PI*2; ctx.beginPath(); ctx.moveTo(Math.cos(a)*z.r,Math.sin(a)*z.r); ctx.lineTo(Math.cos(a+0.4)*(z.r+6),Math.sin(a+0.4)*(z.r+6)); ctx.lineTo(Math.cos(a+0.8)*z.r,Math.sin(a+0.8)*z.r); ctx.closePath(); ctx.fill(); }
     ctx.fillStyle='#5a6680'; ctx.beginPath(); ctx.arc(0,0,z.r,0,7); ctx.fill(); ctx.fillStyle=HZ; ctx.beginPath(); ctx.arc(0,0,z.r*0.28,0,7); ctx.fill(); ctx.restore(); } }
 function drawLines(){
-  for(let i=0;i<lines.length;i++){ const ln=lines[i], old=i===0&&lines.length===MAX_LINES; lineStroke(ln.x1,ln.y1,ln.x2,ln.y2, old?'rgba(79,127,166,.42)':'#7edcff', old?5:8); }
+  for(let i=0;i<lines.length;i++){ const ln=lines[i], old=i===0&&lines.length===MAX_LINES; let col,w;
+    if(ln.hits>=1){ col='#ffd76a'; w=7; } else if(old){ col='rgba(79,127,166,.42)'; w=5; } else { col='#7edcff'; w=8; }   // amber = 1 bounce used, breaks next
+    lineStroke(ln.x1,ln.y1,ln.x2,ln.y2,col,w); }
   if(drawing&&curLine){ const len=Math.hypot(curLine.x2-curLine.x1,curLine.y2-curLine.y1); ctx.globalAlpha=0.8; lineStroke(curLine.x1,curLine.y1,curLine.x2,curLine.y2, len>=MIN_LINE?'#9af0bb':'#ff8aa0',8); ctx.globalAlpha=1; } }
 function lineStroke(x1,y1,x2,y2,col,w){ ctx.lineCap='round'; ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=Math.max(1,w-5); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
