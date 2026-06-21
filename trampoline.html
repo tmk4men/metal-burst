@@ -112,8 +112,8 @@ function fitCanvas(){ W=Math.max(300,Math.floor(window.innerWidth)); H=Math.max(
 window.addEventListener('resize',()=>{ fitCanvas(); checkRotate(); });
 
 /* ---------- constants ---------- */
-const BALL_R=14, GRAV=0.19, MAXV=19, WALL_REST=0.62;
-const TRAMP_E=1.09, MIN_BOUNCE=11.5;           // restitution + guaranteed min upward bounce speed (floaty)
+const BALL_R=14, GRAV=0.155, MAXV=18, WALL_REST=0.62;
+const TRAMP_E=1.07, MIN_BOUNCE=10.6;           // restitution + guaranteed min upward bounce speed (extra floaty)
 const LINE_MAX=150, MIN_LINE=14, MAX_LINES=2;  // length cap, min drawable, persistent line count
 const INK_MAX=100, INK_COST=0.28, INK_REGEN=0.5, INK_BUCKET=85;   // ink economy (eased)
 const SPIKE_DEPTH=15, FLOOR_H=10;
