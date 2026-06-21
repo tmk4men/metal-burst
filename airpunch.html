@@ -19,6 +19,13 @@
 <meta name="twitter:title" content="うしろからパンチ — 背後パンチで場外へ">
 <meta name="twitter:description" content="背後に回ってパンチ、相手を場外へふっとばす対戦アクション。ブラウザで今すぐ・無料。">
 <meta name="twitter:image" content="https://tmk4men.github.io/metal-burst/airpunch-og.png">
+<link rel="manifest" href="airpunch.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="うしろからパンチ">
+<link rel="apple-touch-icon" href="ap-apple-touch.png">
+<link rel="icon" type="image/png" href="ap-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@400;600;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
 <style>
@@ -99,9 +106,9 @@ window.addEventListener('resize',()=>{ fitCanvas(); layoutUI(); checkRotate(); }
 
 /* ---------- constants ---------- */
 const WIN_PTS=5;
-const PR=19, MOVE_ACC=0.72, FRICTION=0.86, MAX_RUN=4.4, MAXV=20;
-const PUNCH_CD=24, PUNCH_REACH=62, PUNCH_ARC=0.7;      // melee air-punch in facing dir
-const KB_BASE=4.5, KB_SCALE=0.14, DMG_PER=10, BACK_MULT=2.0, FALL_T=26;
+const PR=19, MOVE_ACC=0.8, FRICTION=0.88, MAX_RUN=5.0, MAXV=22;
+const PUNCH_CD=20, PUNCH_REACH=66, PUNCH_ARC=0.75;     // melee air-punch in facing dir
+const KB_BASE=6, KB_SCALE=0.14, DMG_PER=10, BACK_MULT=2.2, FALL_T=26;
 const COL=[{body:'#7edcff',dark:'#2c93cf',hi:'#d6f3ff'},{body:'#ff8aa0',dark:'#d9536e',hi:'#ffd9e0'}];
 const PADR=()=>Math.max(52,Math.min(W,H)*0.155);
 const DIFF=[{n:'やさしい',rt:30,err:0.45,circle:0.5},{n:'ふつう',rt:20,err:0.65,circle:0.72},{n:'つよい',rt:13,err:0.84,circle:0.9}];
@@ -167,9 +174,9 @@ function punch(u){ if(u.cd>0||u.fall>0||u.respawn>0)return; u.cd=PUNCH_CD; u.pun
     if(d<PUNCH_REACH+PR){ const aim=Math.atan2(dy,dx); let da=Math.atan2(Math.sin(aim-ang),Math.cos(aim-ang));
       if(Math.abs(da)<PUNCH_ARC){ hitP(foe,ang); } } } }
 function hitP(o,ang){ // back hit = the blast travels the way the target faces
-  const back = (Math.cos(o.face)*Math.cos(ang)+Math.sin(o.face)*Math.sin(ang))>0.35;
-  const m = back?BACK_MULT:0.6, kb=(KB_BASE+o.dmg*KB_SCALE)*m;
-  o.vx=Math.cos(ang)*kb; o.vy=Math.sin(ang)*kb; o.dmg+=Math.round(DMG_PER*(back?1.4:0.7)); o.flash=1;
+  const dot=Math.cos(o.face)*Math.cos(ang)+Math.sin(o.face)*Math.sin(ang);
+  const back=dot>0.25, front=dot<-0.3, m=back?BACK_MULT:(front?0.5:1.0), kb=(KB_BASE+o.dmg*KB_SCALE)*m;
+  o.vx=Math.cos(ang)*kb; o.vy=Math.sin(ang)*kb; o.dmg+=Math.round(DMG_PER*(back?1.4:front?0.6:1)); o.flash=1;
   shake=Math.max(shake,6+kb*0.6); hitstop=Math.max(hitstop,back?7:3);
   puff(o.x,o.y,ang,back?'#ffd76a':'#ffffff'); sfxHit(back);
   if(back){ puff(o.x,o.y,ang,'#ffd76a'); banner='うしろからパンチ！'; bannerT=40; note(1046,0.12,'square',0.1); } }

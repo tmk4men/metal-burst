@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1830"/><stop offset="1" stop-color="#1d3f66"/></linearGradient>
+    <radialGradient id="ring" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#1a3358"/><stop offset="1" stop-color="#0e2038"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- top-down arena hint -->
+  <ellipse cx="256" cy="300" rx="180" ry="120" fill="url(#ring)" stroke="#dfeaf8" stroke-width="10"/>
+  <ellipse cx="256" cy="300" rx="92" ry="60" fill="none" stroke="#ffffff" stroke-width="3" opacity=".18"/>
+  <!-- fist -->
+  <g transform="translate(196,236)">
+    <rect x="-44" y="-30" width="74" height="60" rx="18" fill="#7edcff" stroke="#2c93cf" stroke-width="6"/>
+    <g stroke="#2c93cf" stroke-width="5"><line x1="-30" y1="-12" x2="22" y2="-12"/><line x1="-30" y1="4" x2="22" y2="4"/><line x1="-30" y1="20" x2="22" y2="20"/></g>
+    <rect x="26" y="-20" width="20" height="40" rx="9" fill="#7edcff" stroke="#2c93cf" stroke-width="6"/>
+  </g>
+  <!-- air gust -->
+  <g stroke="#bfe6ff" stroke-width="13" fill="none" stroke-linecap="round">
+    <path d="M286 196 a40 40 0 0 1 0 80"/>
+    <path d="M330 184 a54 54 0 0 1 0 104"/>
+    <path d="M374 174 a66 66 0 0 1 0 124"/>
+  </g>
+  <g fill="#ffffff" opacity=".8"><circle cx="120" cy="120" r="6"/><circle cx="410" cy="150" r="5"/><circle cx="150" cy="420" r="5"/></g>
+</svg>
