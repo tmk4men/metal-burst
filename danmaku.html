@@ -88,7 +88,7 @@
     <div class="howlist" id="howlist">
       <div class="howrow"><span class="ic" id="icBomb"></span><span>あなたは<b>ボム兵</b>。<b>画面の外</b>から飛んでくる<b>弾幕</b>をよけろ！</span></div>
       <div class="howrow"><span class="ic" id="icMove"></span><span><b>左パッド</b>＝移動 ／ <b>右ボタン</b>＝スロー（精密よけ）</span></div>
-      <div class="howrow"><span class="ic" id="icHeart"></span><span>当たり判定は<b>中心の点</b>だけ。ライフ3・生存<b>秒数</b>がスコア！</span></div>
+      <div class="howrow"><span class="ic" id="icHeart"></span><span>当たり判定は<b>中心の点</b>だけ。ライフ2・生存<b>秒数</b>がスコア！</span></div>
     </div>
     <div class="orow"><span style="font-size:12px;color:#9fb4d0">つよさ</span><div class="seg" id="diffSeg"></div></div>
   </div>
@@ -109,7 +109,7 @@ function fitCanvas(){ VW=Math.max(300,Math.floor(window.innerWidth)); VH=Math.ma
 window.addEventListener('resize',()=>{ fitCanvas(); layoutUI(); checkRotate(); });
 
 /* ---------- constants ---------- */
-const PR=16, R_HIT=4.6, MAX_RUN=3.7, FOCUS_RUN=1.5, ACC=0.55, FRIC=0.78, LIVES=3, IFRAME=110, WARN_T=10;
+const PR=16, R_HIT=4.6, MAX_RUN=3.7, FOCUS_RUN=1.5, ACC=0.55, FRIC=0.78, LIVES=2, IFRAME=110, WARN_T=10;
 const DIFF=[{n:'やさしい',gap:1.4,sp:0.82},{n:'ふつう',gap:1.1,sp:1.0},{n:'つよい',gap:0.88,sp:1.16}];
 let diff=1;
 /* ---------- save ---------- */
