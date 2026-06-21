@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>スノーフレンズ — チーム雪合戦（旗取り）</title>
+<title>ゆきがっせん — トップダウン・チーム雪合戦</title>
 <meta name="theme-color" content="#0a1426">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
@@ -483,8 +483,8 @@ function drawBanner(){ uctx.save(); uctx.globalAlpha=Math.min(1,bannerT/16); uct
 let playing=false;
 function loop(){ tick++; if(bannerT>0)bannerT--;
   if(intro>0){ intro--; stepPuffs(); draw(); requestAnimationFrame(loop); return; }
-  if(playing){ controlHuman(); for(const u of units)if(!u.human)controlAI(u); stepBalls(); stepRevive(); stepPuffs(); }
-  else stepPuffs();
+  if(playing && !roundOver){ controlHuman(); for(const u of units)if(!u.human)controlAI(u); stepBalls(); stepRevive(); }
+  stepPuffs();
   draw(); requestAnimationFrame(loop);
 }
 const ovEl=document.getElementById('overlay'),logoEl=document.getElementById('logo'),
