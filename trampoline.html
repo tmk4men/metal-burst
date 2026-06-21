@@ -113,7 +113,7 @@ window.addEventListener('resize',()=>{ fitCanvas(); checkRotate(); });
 const BALL_R=14, GRAV=0.19, MAXV=19, WALL_REST=0.62;
 const TRAMP_E=1.09, MIN_BOUNCE=11.5;           // restitution + guaranteed min upward bounce speed (floaty)
 const LINE_MAX=150, MIN_LINE=14, MAX_LINES=2;  // length cap, min drawable, persistent line count
-const INK_MAX=100, INK_COST=0.32, INK_REGEN=0.32, INK_BUCKET=70;   // ink economy
+const INK_MAX=100, INK_COST=0.28, INK_REGEN=0.5, INK_BUCKET=85;   // ink economy (eased)
 const SPIKE_DEPTH=15, FLOOR_H=10;
 let AX0=0,AX1=0;
 function computeArena(){ AX0=16; AX1=W-16; }
@@ -196,7 +196,7 @@ function step(){ tick++;
   if(ball.intro){ stepIntro(); genHazards(); stepHazards(); stepPuffs(); return; }
   const hf=Math.min(1,maxClimb/4500);
   wind=Math.sin(tick*0.008); if(hf<0.5) ball.vx+=wind*0.06*(1-hf*2);   // sky-zone wind
-  if(hf>0.5 && --meteorT<=0){ meteorT=(70+Math.random()*90)|0; hazards.push({type:'meteor',x:AX0+Math.random()*(AX1-AX0),y:camY-30,r:12,vx:(Math.random()*2-1)*2,vy:5+Math.random()*3}); }   // space-zone meteors
+  if(hf>0.5 && --meteorT<=0){ meteorT=(70+Math.random()*90)|0; hazards.push({type:'meteor',x:AX0+Math.random()*(AX1-AX0),y:camY-110,r:12,vx:(Math.random()*2-1)*1.6,vy:3.8+Math.random()*2.2}); }   // space-zone meteors (enter from higher, a bit slower = visible)
   let bounced=false; for(let s=0;s<3;s++){ if(substep(1/3))bounced=true; }
   if(bounced){ const sp=Math.hypot(ball.vx,ball.vy); sfxBounce(Math.min(1,sp/MAXV)); puff(ball.x,ball.y,'#9af0bb',14); if(sp>13)shake=Math.max(shake,3); }
   for(let i=lines.length-1;i>=0;i--){ if(lines[i].hits>=2){ const r=lines[i]; puff((r.x1+r.x2)/2,(r.y1+r.y2)/2,'#ffd76a',12); lines.splice(i,1); } }   // each trampoline breaks after 2 bounces
@@ -220,7 +220,7 @@ function genHazards(){ const top=camY-H*0.5;   // generate up to half a screen a
     const gap=Math.max(118, 210 - h*0.012); spawnBand(nextGenY, h);
     if(Math.random()<0.5){ const n=2+(Math.random()*3|0), cx=AX0+36+Math.random()*(AX1-AX0-72), gy=nextGenY-gap*0.5; for(let i=0;i<n;i++) gems.push({x:cx+(i-(n-1)/2)*22,y:gy}); }   // coin row
     if(h>500 && Math.random()<0.1) hazards.push({type:'spring',x:AX0+28+Math.random()*(AX1-AX0-56),y:nextGenY-gap*0.5,cd:0});   // spring pad (super jump)
-    if(Math.random()<0.14) gems.push({x:AX0+30+Math.random()*(AX1-AX0-60),y:nextGenY-gap*0.62,ink:true});   // ink bucket
+    if(Math.random()<0.16) gems.push({x:AX0+30+Math.random()*(AX1-AX0-60),y:nextGenY-gap*0.62,ink:true});   // ink bucket
     nextGenY-=gap; } }
 function spawnBand(y,h){ const r=Math.random(), span=AX1-AX0;
   if(r<0.28){ const side=Math.random()<0.5?0:1; hazards.push({type:'spikeWall',side,y,h:60+Math.random()*70}); }
