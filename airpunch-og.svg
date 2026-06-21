@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1830"/><stop offset=".55" stop-color="#16335a"/><stop offset="1" stop-color="#22507f"/></linearGradient>
+    <linearGradient id="plat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a5a86"/><stop offset="1" stop-color="#21304a"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <!-- moon -->
+  <circle cx="980" cy="120" r="58" fill="#eef5ff"/><circle cx="958" cy="100" r="30" fill="#cdd9ee" opacity=".6"/>
+  <!-- clouds -->
+  <g fill="#cfe0f5" opacity=".45"><ellipse cx="180" cy="140" rx="60" ry="22"/><ellipse cx="225" cy="150" rx="42" ry="18"/><ellipse cx="760" cy="100" rx="54" ry="20"/></g>
+  <!-- platform -->
+  <rect x="250" y="420" width="700" height="120" rx="18" fill="url(#plat)"/>
+  <rect x="250" y="420" width="700" height="20" rx="12" fill="#dfeaf8"/>
+  <rect x="246" y="410" width="6" height="32" fill="#7edcff"/><rect x="948" y="410" width="6" height="32" fill="#ff8aa0"/>
+  <!-- cyan fighter (left, firing right) -->
+  <g stroke="#7edcff" stroke-width="9" stroke-linecap="round" fill="none">
+    <circle cx="430" cy="352" r="15" fill="#7edcff" stroke="none"/>
+    <line x1="430" y1="367" x2="430" y2="404"/>
+    <line x1="430" y1="404" x2="416" y2="420"/><line x1="430" y1="404" x2="444" y2="420"/>
+    <line x1="430" y1="378" x2="412" y2="388"/>
+    <line x1="430" y1="378" x2="470" y2="372"/>
+  </g>
+  <rect x="466" y="362" width="22" height="16" rx="3" fill="#2a3650" stroke="#0c1526" stroke-width="2"/>
+  <!-- air blast -->
+  <g stroke="#bfe6ff" stroke-width="6" fill="none" opacity=".9"><path d="M500 370 a22 22 0 0 1 0 0"/>
+    <path d="M512 352 a26 26 0 0 1 0 36"/><path d="M540 348 a32 32 0 0 1 0 44"/><path d="M572 344 a38 38 0 0 1 0 52"/></g>
+  <!-- pink fighter (right, knocked off, tumbling) -->
+  <g transform="translate(900,300) rotate(40)" stroke="#ff8aa0" stroke-width="9" stroke-linecap="round" fill="none">
+    <circle cx="0" cy="-16" r="15" fill="#ff8aa0" stroke="none"/>
+    <line x1="0" y1="-1" x2="0" y2="34"/>
+    <line x1="0" y1="34" x2="-16" y2="50"/><line x1="0" y1="34" x2="16" y2="50"/>
+    <line x1="0" y1="8" x2="-22" y2="2"/><line x1="0" y1="8" x2="22" y2="14"/>
+  </g>
+  <text x="50%" y="135" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, sans-serif" font-weight="900" font-size="104" fill="#ffffff" stroke="#0a1426" stroke-width="3" paint-order="stroke">エアパンチ</text>
+  <text x="50%" y="585" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, sans-serif" font-weight="700" font-size="34" fill="#bfe2ff">空気砲で場外にふっとばせ ／ ブラウザで今すぐ・無料</text>
+</svg>
