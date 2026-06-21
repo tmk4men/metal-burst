@@ -62,12 +62,16 @@
     background:rgba(126,220,255,.07); border:1px solid rgba(126,220,255,.22); transition:transform .06s,background .12s; }
   .ghost:hover{ background:rgba(126,220,255,.13); } .ghost:active{ transform:translateY(2px); }
   .credit{ font-size:10.5px; color:#6f86a8; letter-spacing:.5px; }
-  @media (max-height:480px){ .inner{ gap:10px; padding:18px 22px; } #logo{ font-size:clamp(28px,8vh,46px);} .howto{ font-size:11px; line-height:1.5;} .credit{display:none;} }
+  @media (max-height:480px){ .inner{ gap:10px; padding:18px 22px; } #logo{ font-size:clamp(28px,8vh,46px);} }
+  #muteBtn{ position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px; z-index:50; width:40px; height:40px; display:grid; place-items:center;
+    border-radius:12px; cursor:pointer; color:#cfe2f7; background:rgba(9,17,32,.66); border:1px solid rgba(126,220,255,.24); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+  #muteBtn svg{ width:20px; height:20px; }
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas><canvas id="ui"></canvas></div>
 <div id="rotate"><div class="phone"></div><h2>PLEASE ROTATE</h2><p>縦画面（タテ向き）でプレイしてください</p></div>
+<button id="muteBtn" aria-label="sound"></button>
 <div id="overlay"><div class="inner">
   <div id="logo">ゆき<span class="b">がっせん</span><span class="on">SNOW FRIENDS</span></div>
   <div id="resTitle" class="orb"></div>
@@ -93,18 +97,36 @@ function riverBand(){ const w=Math.max(52,FH*0.095); return {t:FH/2-w/2, b:FH/2+
 const COL=[{body:'#7edcff',dark:'#2c93cf',belly:'#dff5ff',name:'あなた'},{body:'#ff8aa0',dark:'#d9536e',belly:'#ffe0e7',name:'てき'}];
 const PADR=()=>Math.max(52,Math.min(W,H)*0.142);
 
-/* ---------- audio ---------- */
+/* ---------- audio (SFX + light BGM, routed through a mutable master) ---------- */
 let AC=null; const actx=()=>{ if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}return AC; };
-function beep(f,d,t='sine',v=.16,s=0){ const a=actx(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t; o.frequency.value=f;
-  if(s)o.frequency.exponentialRampToValueAtTime(Math.max(40,f+s),a.currentTime+d); g.gain.value=v; g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+d);
-  o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+d); }
-function sfxThrow(){ beep(560,0.1,'triangle',0.1,-260); }
-function sfxHit(){ const a=actx(); if(!a)return; const b=a.createBuffer(1,2400,a.sampleRate),d=b.getChannelData(0);
-  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4); const s=a.createBufferSource(); s.buffer=b;
-  const g=a.createGain(); g.gain.value=0.32; g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.15); s.connect(g); g.connect(a.destination); s.start(); }
-function sfxCap(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.16,'triangle',0.13),i*90)); }
-function sfxWin(){ [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.14),i*110)); }
-function sfxLose(){ [392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,0.24,'sine',0.14),i*150)); }
+let muted=(()=>{ try{ return localStorage.getItem('yk_mute')==='1'; }catch(e){ return false; } })();
+let master=null;
+function bus(){ const a=actx(); if(!a)return null; if(!master){ master=a.createGain(); master.gain.value=muted?0:1; master.connect(a.destination); } return master; }
+function note(f,d,t='sine',v=.16,s=0){ const a=actx(),m=bus(); if(!a||!m)return; const o=a.createOscillator(),g=a.createGain(); o.type=t; o.frequency.value=f;
+  if(s)o.frequency.exponentialRampToValueAtTime(Math.max(40,f+s),a.currentTime+d); g.gain.value=0; const tt=a.currentTime;
+  g.gain.linearRampToValueAtTime(v,tt+0.012); g.gain.exponentialRampToValueAtTime(0.0001,tt+d);
+  o.connect(g); g.connect(m); o.start(); o.stop(tt+d+0.02); }
+const beep=note;
+function sfxThrow(){ note(540,0.12,'triangle',0.09,-300); note(220,0.06,'sine',0.05,-80); }     // soft whoosh
+function sfxHit(){ const a=actx(),m=bus(); if(!a||!m)return; const b=a.createBuffer(1,2600,a.sampleRate),d=b.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.6); const s=a.createBufferSource(); s.buffer=b;
+  const g=a.createGain(); g.gain.value=0.3; g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.16); s.connect(g); g.connect(m); s.start();
+  note(150,0.12,'sine',0.12,-50); }                                                              // snow pof + thump
+function sfxPack(){ note(300,0.07,'square',0.05,80); note(170,0.05,'sine',0.05); }               // scoop
+function sfxDown(){ note(200,0.22,'sine',0.16,-120); note(90,0.3,'sine',0.12,-30); }             // thud
+function sfxRevive(){ [523,659,880].forEach((f,i)=>setTimeout(()=>note(f,0.18,'triangle',0.1),i*70)); }
+function sfxRound(){ note(880,0.1,'square',0.08); setTimeout(()=>note(1175,0.14,'square',0.08),110); }   // whistle
+function sfxWin(){ [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>note(f,0.2,'triangle',0.13),i*110)); }
+function sfxLose(){ [392,330,262].forEach((f,i)=>setTimeout(()=>note(f,0.24,'sine',0.12),i*150)); }
+/* light looping BGM */
+let bgmTimer=null, bgmStep=0;
+const BGM_MEL=[659,784,880,784, 659,587,523,587, 659,784,880,1047, 880,784,659,0];
+const BGM_BASS=[131,196,165,98];
+function bgmTick(){ const i=bgmStep%BGM_MEL.length; if(BGM_MEL[i]) note(BGM_MEL[i],0.34,'triangle',0.035);
+  if(i%4===0){ note(BGM_BASS[(bgmStep/4|0)%BGM_BASS.length],0.7,'sine',0.05); } bgmStep++; }
+function startBGM(){ bus(); if(bgmTimer)return; bgmStep=0; bgmTimer=setInterval(bgmTick,300); }
+function stopBGM(){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } }
+function setMuted(m){ muted=m; try{ localStorage.setItem('yk_mute',m?'1':'0'); }catch(e){} const b=bus(); if(b&&AC)b.gain.setTargetAtTime(m?0:1,AC.currentTime,0.02); }
 
 /* ---------- world ---------- */
 let forts=[], snowflakes=[], bumps=[];
@@ -166,7 +188,7 @@ function stepBalls(){ for(let i=balls.length-1;i>=0;i--){ const b=balls[i];
   if(--b.life<=0)gone=true; if(gone)balls.splice(i,1); } }
 function hitUnit(o,b){ o.hp--; o.flash=1; const a=Math.atan2(o.y-b.y,o.x-b.x); o.vx+=Math.cos(a)*3.4; o.vy+=Math.sin(a)*3.4;
   shake=Math.max(shake,6); puff(o.x,o.y,'#ffffff',7); sfxHit();
-  if(o.hp<=0){ o.dead=true; puff(o.x,o.y,o.team===0?'#bfe8ff':'#ffd2db',13); shake=Math.max(shake,9);
+  if(o.hp<=0){ o.dead=true; puff(o.x,o.y,o.team===0?'#bfe8ff':'#ffd2db',13); shake=Math.max(shake,9); sfxDown();
     checkRound(); } }
 
 /* ---------- round / scoring (eliminate the enemy team) ---------- */
@@ -177,7 +199,7 @@ function checkRound(){ if(roundOver)return; const aB=units.some(u=>u.team===0&&!
   if(wins[w]>=ROUND_WIN){ setTimeout(()=>endGame(w),1100); } else { setTimeout(nextRound,1600); } }
 function stepRevive(){ for(const d of units){ if(!d.dead)continue;
   let helper=false; for(const u of units){ if(u===d||u.dead||u.team!==d.team)continue; if(Math.hypot(u.x-d.x,u.y-d.y)<PR*1.7){ helper=true; break; } }
-  if(helper){ d.reviveT++; if(d.reviveT>=REVIVE){ d.dead=false; d.hp=1; d.ammo=AMMO_MAX; d.reviveT=0; d.flash=1; puff(d.x,d.y,'#7dff9e',13); } }
+  if(helper){ d.reviveT++; if(d.reviveT>=REVIVE){ d.dead=false; d.hp=1; d.ammo=AMMO_MAX; d.reviveT=0; d.flash=1; puff(d.x,d.y,'#7dff9e',13); sfxRevive(); } }
   else d.reviveT=Math.max(0,d.reviveT-2); } }
 
 /* ---------- movement / AI ---------- */
@@ -194,7 +216,7 @@ function moveUnit(u,mx,my){ if(u.dead)return;
   if(u.cd>0)u.cd--; if(u.flash>0)u.flash=Math.max(0,u.flash-0.08);
 }
 function controlHuman(){ if(!me||me.dead)return;
-  if(packBtn.held){ if(me.ammo<AMMO_MAX){ me.regen++; if(me.regen>=RELOAD){ me.ammo=AMMO_MAX; me.regen=0; } } moveUnit(me,0,0); return; }   // stand & pack snow
+  if(packBtn.held){ if(me.ammo<AMMO_MAX){ me.regen++; if(me.regen>=RELOAD){ me.ammo=AMMO_MAX; me.regen=0; sfxPack(); } } moveUnit(me,0,0); return; }   // stand & pack snow
   let mx=0,my=0; const m=pad.move; if(m.a){ const v=padVec(m),R=PADR(); if(v.len>R*0.16){ mx=Math.max(-1,Math.min(1,v.x/R)); my=Math.max(-1,Math.min(1,v.y/R)); } }
   if(keys['ArrowLeft']||keys['a'])mx=-1; if(keys['ArrowRight']||keys['d'])mx=1; if(keys['ArrowUp']||keys['w'])my=-1; if(keys['ArrowDown']||keys['s'])my=1;
   const l=Math.hypot(mx,my); if(l>1){mx/=l;my/=l;} moveUnit(me,mx,my);
@@ -407,18 +429,23 @@ function loop(){ tick++; if(bannerT>0)bannerT--;
 const ovEl=document.getElementById('overlay'),logoEl=document.getElementById('logo'),
   resTitleEl=document.getElementById('resTitle'),resSubEl=document.getElementById('resSub'),
   startBtn=document.getElementById('startBtn'),homeBtn=document.getElementById('homeBtn');
-function showHome(){ playing=false; ovEl.classList.remove('hide'); logoEl.style.display='';
+function showHome(){ playing=false; stopBGM(); ovEl.classList.remove('hide'); logoEl.style.display='';
   resTitleEl.style.display='none'; resSubEl.style.display='none'; homeBtn.style.display='none'; startBtn.textContent='はじめる'; }
-function startGame(){ actx(); fitCanvas(); buildArena(); layoutUI(); wins=[0,0]; round=1; playing=true; ovEl.classList.add('hide'); startRound(); }
+function startGame(){ actx(); fitCanvas(); buildArena(); layoutUI(); wins=[0,0]; round=1; playing=true; ovEl.classList.add('hide'); startBGM(); startRound(); }
 function startRound(){ resetUnits(); balls=[]; puffs=[]; roundOver=false; pad.move.a=pad.aim.a=false; pad.move.id=pad.aim.id=-1; packBtn.held=false; packBtn.id=-1;
-  banner='ROUND '+round; bannerT=70; intro=55; }
+  banner='ROUND '+round; bannerT=70; intro=55; sfxRound(); }
 function nextRound(){ round++; startRound(); }
-function endGame(team){ playing=false; ovEl.classList.remove('hide'); logoEl.style.display='none';
+function endGame(team){ playing=false; stopBGM(); ovEl.classList.remove('hide'); logoEl.style.display='none';
   resTitleEl.style.display='block'; resSubEl.style.display='block';
   if(team===0){ resTitleEl.textContent='YOU WIN'; resTitleEl.style.color='#7edcff'; resSubEl.textContent='ラウンド '+wins[0]+' - '+wins[1]+' で勝利！'; sfxWin(); }
   else { resTitleEl.textContent='YOU LOSE'; resTitleEl.style.color='#ff7f93'; resSubEl.textContent='ラウンド '+wins[0]+' - '+wins[1]+' …リベンジ？'; sfxLose(); }
   startBtn.textContent='もう一度'; homeBtn.style.display=''; }
 startBtn.onclick=startGame; homeBtn.onclick=showHome;
+const muteBtn=document.getElementById('muteBtn');
+const ICON_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>';
+const ICON_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg>';
+function refreshMute(){ muteBtn.innerHTML=muted?ICON_OFF:ICON_ON; muteBtn.style.color=muted?'#7f93b0':'#cfe2f7'; }
+muteBtn.onclick=()=>{ actx(); setMuted(!muted); refreshMute(); }; refreshMute();
 function checkRotate(){ document.getElementById('rotate').classList.toggle('show', window.innerWidth>window.innerHeight && 'ontouchstart' in window); }
 window.addEventListener('orientationchange',()=>setTimeout(()=>{fitCanvas();buildArena();layoutUI();checkRotate();},200));
 fitCanvas(); buildArena(); layoutUI(); checkRotate(); loop();
