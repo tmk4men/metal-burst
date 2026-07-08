@@ -91,7 +91,7 @@
     <div class="howlist" id="howlist">
       <div class="howrow"><span class="ic" id="icDraw"></span><span>画面を<b>なぞって</b>トランポリンを描く（<b>最新2本</b>・各<b>2回</b>踏むと壊れる）</span></div>
       <div class="howrow"><span class="ic" id="icUp"></span><span>落ちてくるキャラを<b>跳ね上げて</b>、できるだけ<b>高く</b>登れ！</span></div>
-      <div class="howrow"><span class="ic" id="icSpike"></span><span><b>トゲ・ノコギリ</b>に当たる／<b>画面下に落ちる</b>とミス。<b>インク</b>切れに注意（バケツで補充）</span></div>
+      <div class="howrow"><span class="ic" id="icSpike"></span><span><b>トゲ・ノコギリ</b>に当たる／<b>画面下に落ちる</b>とミス。<b>インク</b>は時間で自動回復（バケツで一気に補充）</span></div>
     </div>
     <div class="coinline" id="coinLine"></div>
     <div class="skins" id="skinRow"></div>
@@ -103,6 +103,7 @@
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 const uic=document.getElementById('ui'),uctx=uic.getContext('2d');
 const bbf=document.createElement('canvas'),bbx=bbf.getContext('2d'); const PXB=4; let BBW=120,BBH=220;   // low-res background buffer (pixel-art)
+let bgc=ctx;   // background draws into this ctx (redirected to the low-res buffer each frame)
 let W=420,H=820,DPR=1,SAT=0;
 const _sap=document.createElement('div'); _sap.style.cssText='position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;'; document.body.appendChild(_sap);
 function fitCanvas(){ W=Math.max(300,Math.floor(window.innerWidth)); H=Math.max(360,Math.floor(window.innerHeight));
@@ -112,14 +113,36 @@ function fitCanvas(){ W=Math.max(300,Math.floor(window.innerWidth)); H=Math.max(
 window.addEventListener('resize',()=>{ fitCanvas(); checkRotate(); });
 
 /* ---------- constants ---------- */
-const BALL_R=14, GRAV=0.155, MAXV=18, WALL_REST=0.62;
-const TRAMP_E=1.07, MIN_BOUNCE=10.6;           // restitution + guaranteed min upward bounce speed (extra floaty)
+const BALL_R=14, GRAV=0.125, MAXV=15, WALL_REST=0.62;
+const TRAMP_E=1.05, MIN_BOUNCE=10.0;           // restitution + guaranteed min upward bounce speed (extra floaty / slower)
 const LINE_MAX=150, MIN_LINE=14, MAX_LINES=2;  // length cap, min drawable, persistent line count
-const INK_MAX=100, INK_COST=0.28, INK_REGEN=0.5, INK_BUCKET=85;   // ink economy (eased)
+const INK_MAX=100, INK_COST=0.20, INK_BUCKET=85, INK_REGEN=0.16;   // ink economy — auto-recovers over time (~10s to full), buckets top up instantly
 const SPIKE_DEPTH=15, FLOOR_H=10;
 let AX0=0,AX1=0;
 function computeArena(){ AX0=16; AX1=W-16; }
 const M_PER_PX=1/28;   // height -> meters
+
+/* ---------- AdMob (Capacitor native only; no-op in browser) ----------
+   IDs are the real AdMob units for えがけ！トランポリン.
+   AD_TESTING=true -> serves Google TEST ads even with the real IDs (safe for dev/QA;
+   AdMob policy forbids clicking your own LIVE ads). Set AD_TESTING=false ONLY for the
+   production release build you upload to Play. */
+const AD_TESTING = false;   // production: serve LIVE ads. (set true again for dev/QA to show Google test ads)
+const AD_BANNER_ID       = 'ca-app-pub-5634961953346923/6531320140';   // トランポリンバナー
+const AD_INTERSTITIAL_ID = 'ca-app-pub-5634961953346923/3003138676';   // トランポリンdouga (動画)
+const AD_INTERSTITIAL_EVERY = 3;   // show the full-screen video ad once every N game-overs (2〜3)
+const AdMob = (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform() && Capacitor.registerPlugin) ? Capacitor.registerPlugin('AdMob') : null;
+let _interReady=false, _adGames=0, _bannerOn=false;
+async function adInit(){ if(!AdMob)return; try{
+    await AdMob.initialize({ initializeForTesting: AD_TESTING });
+    AdMob.addListener('interstitialAdDismissed', ()=>{ _interReady=false; adPrepareInter(); });
+    AdMob.addListener('interstitialAdFailedToShow', ()=>{ _interReady=false; adPrepareInter(); });
+    adPrepareInter();
+  }catch(e){} }
+async function adPrepareInter(){ if(!AdMob||_interReady)return; try{ await AdMob.prepareInterstitial({ adId:AD_INTERSTITIAL_ID, isTesting:AD_TESTING }); _interReady=true; }catch(e){ _interReady=false; } }
+async function adShowBanner(){ if(!AdMob||_bannerOn)return; _bannerOn=true; try{ await AdMob.showBanner({ adId:AD_BANNER_ID, adSize:'ADAPTIVE_BANNER', position:'BOTTOM_CENTER', margin:0, isTesting:AD_TESTING }); }catch(e){ _bannerOn=false; } }
+async function adHideBanner(){ if(!AdMob||!_bannerOn)return; _bannerOn=false; try{ await AdMob.hideBanner(); }catch(e){} }
+async function adMaybeInterstitial(){ if(!AdMob)return; _adGames++; if(_adGames%AD_INTERSTITIAL_EVERY!==0)return; if(!_interReady){ adPrepareInter(); return; } try{ await AdMob.showInterstitial(); }catch(e){} }
 
 /* ---------- save ---------- */
 const SK='trampoline_save_v1'; let save={best:0,coins:0,skin:0}; try{const s=JSON.parse(localStorage.getItem(SK)); if(s)save=Object.assign(save,s);}catch(e){}
@@ -202,7 +225,7 @@ function stepIntro(){ const b=ball;
 function step(){ tick++;
   if(ball.intro){ stepIntro(); genHazards(); stepHazards(); stepPuffs(); return; }
   const hf=Math.min(1,maxClimb/4500);
-  wind=Math.sin(tick*0.008); if(hf<0.5) ball.vx+=wind*0.06*(1-hf*2);   // sky-zone wind
+  wind=Math.sin(tick*0.008); if(hf<0.5) ball.vx+=wind*0.018*(1-hf*2);   // sky-zone wind (weakened — barely noticeable drift, not a tilt control)
   if(hf>0.5 && --meteorT<=0){ meteorT=(70+Math.random()*90)|0; hazards.push({type:'meteor',x:AX0+Math.random()*(AX1-AX0),y:camY-110,r:12,vx:(Math.random()*2-1)*1.6,vy:3.8+Math.random()*2.2}); }   // space-zone meteors (enter from higher, a bit slower = visible)
   let bounced=false; for(let s=0;s<3;s++){ if(substep(1/3))bounced=true; }
   if(bounced){ const sp=Math.hypot(ball.vx,ball.vy); sfxBounce(Math.min(1,sp/MAXV)); puff(ball.x,ball.y,'#9af0bb',14); if(sp>13)shake=Math.max(shake,3); }
@@ -212,8 +235,8 @@ function step(){ tick++;
   const target=ball.y-H*0.42; if(target<camY) camY+=(target-camY)*0.20;
   climb=Math.max(0,startY-ball.y); if(climb>maxClimb)maxClimb=climb;
   genHazards(); stepHazards(); collideHazards(); stepPuffs();
-  if(ink<INK_MAX) ink=Math.min(INK_MAX,ink+INK_REGEN);   // slow ink regen
   for(let i=gems.length-1;i>=0;i--){ const gm=gems[i]; if(Math.hypot(ball.x-gm.x,ball.y-gm.y)<BALL_R+9){ gems.splice(i,1); if(gm.ink){ ink=Math.min(INK_MAX,ink+INK_BUCKET); puff(gm.x,gm.y,'#7edcff',12); sfxInk(); } else { runCoins++; puff(gm.x,gm.y,'#ffd24a',8); sfxCoin(); } } }
+  if(ink<INK_MAX) ink=Math.min(INK_MAX,ink+INK_REGEN);   // ink slowly refills on its own
   if(noInkFlash>0)noInkFlash--;
   const anyB=bounced||springHit; springHit=false;   // combo: chain bounces without stalling
   if(anyB){ combo++; comboT=140; if(combo>comboBest)comboBest=combo; if(combo>=4 && combo%4===0){ runCoins+=Math.floor(combo/4); puff(ball.x,ball.y-22,'#ffd24a',10); sfxCombo(); } }
@@ -270,21 +293,25 @@ function skyAt(hf){ const seg=SKY.length-1, f=hf*seg, i=Math.min(seg-1,Math.floo
 const NEB=[[0.28,0.30,'rgba(120,150,225,.12)'],[0.74,0.55,'rgba(160,100,210,.11)'],[0.5,0.82,'rgba(70,180,180,.09)']];
 const PLANETS=[{x:0.18,y:520,r:40,par:0.05,c:['#46608f','#19223f','#7e98c8']},{x:0.84,y:1300,r:64,par:0.034,c:['#6a4878','#23142f','#a585b8']},{x:0.5,y:2200,r:30,par:0.07,c:['#3f7a72','#13241f','#74c2b0']}];
 const CLOUDS=[{x:0.3,y:140,s:1.1},{x:0.72,y:430,s:1.4},{x:0.45,y:720,s:0.9},{x:0.82,y:1010,s:1.2},{x:0.2,y:1280,s:1.0}];
-function cloudShape(x,y,s){ ctx.beginPath(); ctx.ellipse(x,y,28*s,15*s,0,0,7); ctx.ellipse(x-22*s,y+5,19*s,12*s,0,0,7); ctx.ellipse(x+24*s,y+6,21*s,13*s,0,0,7); ctx.fill(); }
-function drawPlanet(x,y,r,c,a){ const g=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r); g.addColorStop(0,c[0]); g.addColorStop(1,c[1]); ctx.globalAlpha=0.5*a; ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
-  ctx.globalAlpha=0.16*a; ctx.strokeStyle=c[2]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+function cloudShape(x,y,s){ bgc.beginPath(); bgc.ellipse(x,y,28*s,15*s,0,0,7); bgc.ellipse(x-22*s,y+5,19*s,12*s,0,0,7); bgc.ellipse(x+24*s,y+6,21*s,13*s,0,0,7); bgc.fill(); }
+function drawPlanet(x,y,r,c,a){ const g=bgc.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r); g.addColorStop(0,c[0]); g.addColorStop(1,c[1]); bgc.globalAlpha=0.5*a; bgc.fillStyle=g; bgc.beginPath(); bgc.arc(x,y,r,0,7); bgc.fill();
+  bgc.globalAlpha=0.16*a; bgc.strokeStyle=c[2]; bgc.lineWidth=3; bgc.beginPath(); bgc.arc(x,y,r,0,7); bgc.stroke(); bgc.globalAlpha=1; }
 function drawBackground(){ const hf=Math.min(1,maxClimb/4500), sky=skyAt(hf);
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgb('+sky.top+')'); g.addColorStop(1,'rgb('+sky.bot+')'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  if(hf<0.6){ const sa=1-hf/0.6, sx=W*0.78, sy=H*0.22, sg=ctx.createRadialGradient(sx,sy,0,sx,sy,H*0.4); sg.addColorStop(0,'rgba(255,224,150,'+(0.2*sa)+')'); sg.addColorStop(1,'rgba(255,224,150,0)'); ctx.fillStyle=sg; ctx.fillRect(0,0,W,H); }   // sun glow near ground
+  const g=bgc.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgb('+sky.top+')'); g.addColorStop(1,'rgb('+sky.bot+')'); bgc.fillStyle=g; bgc.fillRect(0,0,W,H);
+  if(hf<0.6){ const sa=1-hf/0.6, sx=W*0.78, sy=H*0.22, sg=bgc.createRadialGradient(sx,sy,0,sx,sy,H*0.4); sg.addColorStop(0,'rgba(255,224,150,'+(0.2*sa)+')'); sg.addColorStop(1,'rgba(255,224,150,0)'); bgc.fillStyle=sg; bgc.fillRect(0,0,W,H); }   // sun glow near ground
   const spA=Math.max(0,(hf-0.4)/0.6);   // space elements stay hidden near the ground, earned as you rise
-  ctx.globalAlpha=spA; for(let i=0;i<NEB.length;i++){ const b=NEB[i], cx=W*b[0]+Math.sin(tick*0.004+i)*26, cy=((H*b[1]+maxClimb*0.03*(0.4+i*0.25))%(H+260)+H+260)%(H+260)-130, r=Math.min(W,H)*0.62, g2=ctx.createRadialGradient(cx,cy,0,cx,cy,r); g2.addColorStop(0,b[2]); g2.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,H); } ctx.globalAlpha=1;
-  for(const p of PLANETS){ const py=((p.y+maxClimb*p.par)%(H+340)+H+340)%(H+340)-170; drawPlanet(p.x*W,py,p.r,p.c,spA); }
-  if(hf<0.55){ const ca=(1-hf/0.55)*0.5; ctx.fillStyle='rgba(222,234,250,'+ca+')'; for(const c of CLOUDS){ const cy=((c.y+maxClimb*0.12)%(H+240)+H+240)%(H+240)-120; cloudShape(c.x*W,cy,c.s); } }   // low clouds scroll away
-  const fast=ball&&Math.abs(ball.vy)>10, stA=0.3+0.7*hf; for(const s of bgStars){ const sy=(s.y+maxClimb*s.d*0.08)%H, yy=((sy+H)%H)|0; ctx.globalAlpha=(0.12+0.12*Math.sin(tick*0.05+s.a))*stA; ctx.fillStyle='#cfe0f5'; ctx.fillRect(s.x|0,yy,s.r,fast?(8+s.r*4):s.r); } ctx.globalAlpha=1;
-  if(hf<0.5 && playing){ const wv=Math.sin(tick*0.008); if(Math.abs(wv)>0.25){ ctx.globalAlpha=0.1; ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; for(let i=0;i<4;i++){ const yy=((tick*1.6+i*H/4)%H), len=18*wv; ctx.beginPath(); ctx.moveTo(W*0.22+i*W*0.17,yy); ctx.lineTo(W*0.22+i*W*0.17+len,yy); ctx.stroke(); } ctx.globalAlpha=1; } } }   // wind streaks (sky)
-function draw(){ ctx.setTransform(DPR,0,0,DPR,0,0);
-  drawBackground();
-  bbx.imageSmoothingEnabled=false; bbx.clearRect(0,0,BBW,BBH); bbx.drawImage(cv,0,0,BBW,BBH);   // downsample bg
+  if(spA>0.01){   // skip all the nebula/planet gradients entirely near the ground
+    bgc.globalAlpha=spA; for(let i=0;i<NEB.length;i++){ const b=NEB[i], cx=W*b[0]+Math.sin(tick*0.004+i)*26, cy=((H*b[1]+maxClimb*0.03*(0.4+i*0.25))%(H+260)+H+260)%(H+260)-130, r=Math.min(W,H)*0.62, g2=bgc.createRadialGradient(cx,cy,0,cx,cy,r); g2.addColorStop(0,b[2]); g2.addColorStop(1,'rgba(0,0,0,0)'); bgc.fillStyle=g2; bgc.fillRect(0,0,W,H); } bgc.globalAlpha=1;
+    for(const p of PLANETS){ const py=((p.y+maxClimb*p.par)%(H+340)+H+340)%(H+340)-170; drawPlanet(p.x*W,py,p.r,p.c,spA); }
+  }
+  if(hf<0.55){ const ca=(1-hf/0.55)*0.5; bgc.fillStyle='rgba(222,234,250,'+ca+')'; for(const c of CLOUDS){ const cy=((c.y+maxClimb*0.12)%(H+240)+H+240)%(H+240)-120; cloudShape(c.x*W,cy,c.s); } }   // low clouds scroll away
+  const fast=ball&&Math.abs(ball.vy)>10, stA=0.3+0.7*hf; for(const s of bgStars){ const sy=(s.y+maxClimb*s.d*0.08)%H, yy=((sy+H)%H)|0; bgc.globalAlpha=(0.12+0.12*Math.sin(tick*0.05+s.a))*stA; bgc.fillStyle='#cfe0f5'; bgc.fillRect(s.x|0,yy,s.r,fast?(8+s.r*4):s.r); } bgc.globalAlpha=1;
+  if(hf<0.5 && playing){ const wv=Math.sin(tick*0.008); if(Math.abs(wv)>0.25){ bgc.globalAlpha=0.1; bgc.strokeStyle='#ffffff'; bgc.lineWidth=2; for(let i=0;i<4;i++){ const yy=((tick*1.6+i*H/4)%H), len=18*wv; bgc.beginPath(); bgc.moveTo(W*0.22+i*W*0.17,yy); bgc.lineTo(W*0.22+i*W*0.17+len,yy); bgc.stroke(); } bgc.globalAlpha=1; } } }   // wind streaks (sky)
+function draw(){
+  // draw the background straight into the low-res buffer (all fills operate on ~120x220 instead of full-res),
+  // then upscale once -> chunky pixel bg. avoids per-frame full-canvas gradient fills + a full-canvas downsample read.
+  bgc=bbx; bbx.setTransform(BBW/W,0,0,BBH/H,0,0); drawBackground(); bbx.setTransform(1,0,0,1,0,0); bgc=ctx;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.imageSmoothingEnabled=false; ctx.drawImage(bbf,0,0,BBW,BBH,0,0,W,H); ctx.imageSmoothingEnabled=true;   // upscale -> chunky pixel bg
   ctx.save(); if(shake>0.4){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); shake*=0.85; } else shake=0;
   ctx.save(); ctx.translate(0,-camY);
@@ -434,14 +461,17 @@ function renderSkins(){ coinLine.textContent='コイン  '+save.coins; skinRow.i
   SKINS.forEach((s,i)=>{ const unlocked=save.coins>=s.cost||i===0; const d=document.createElement('div'); d.className='skinchip'+(save.skin===i?' on':'')+(unlocked?'':' lock');
     d.innerHTML='<span class="dot" style="background:'+s.acc+'"></span>'+(unlocked?s.n:s.cost+'C');
     d.onclick=()=>{ if(save.coins>=s.cost||i===0){ save.skin=i; persist(); renderSkins(); } }; skinRow.appendChild(d); }); }
-function showHome(){ playing=false; dead=false; stopBGM(); ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display=''; optsEl.style.display='flex'; howlistEl.style.display='flex';
+function showHome(){ playing=false; dead=false; stopBGM(); adHideBanner(); ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display=''; optsEl.style.display='flex'; howlistEl.style.display='flex';
   resTitleEl.style.display='none'; resSubEl.style.display='none'; homeBtn.style.display='none'; startBtn.textContent='スタート'; bestLine.textContent='ベスト記録 '+save.best+' m'; renderSkins(); }
-function startGame(){ actx(); fitCanvas(); resetWorld(); playing=true; drawing=false; ovEl.classList.add('hide'); optsEl.style.display='none'; startBGM(); }
+function startGame(){ actx(); fitCanvas(); adHideBanner(); resetWorld(); playing=true; drawing=false; ovEl.classList.add('hide'); optsEl.style.display='none'; startBGM(); }
 function endGame(m,best){ stopBGM(); ovEl.classList.remove('hide'); taglineEl.style.display=''; logoEl.style.display='none'; howlistEl.style.display='none'; optsEl.style.display='none';
   resTitleEl.style.display='block'; resSubEl.style.display='block'; resTitleEl.textContent=m+' m';
   const pct=save.best>0?Math.min(100,m/save.best*100):100;
   resSubEl.innerHTML=(best?'<b style="color:#ffd76a">★ ベスト更新！</b>':('ベスト '+save.best+' m'))+'<div class="bar"><div class="barfill" style="width:'+pct+'%"></div></div>'+(comboBest>=4?('<div style="color:#ffd24a;margin-top:6px;font-size:12px">最高コンボ x'+comboBest+'</div>'):'')+(runCoins>0?('<div style="color:#ffd24a;margin-top:5px;font-size:13px">＋'+runCoins+' コイン</div>'):'');
-  if(best)sfxBest(); startBtn.textContent='もう一度'; homeBtn.style.display=''; }
+  if(best)sfxBest(); startBtn.textContent='もう一度'; homeBtn.style.display='';
+  adMaybeInterstitial();   // full-screen video ad every AD_INTERSTITIAL_EVERY game-overs
+  adShowBanner();          // banner on the score screen every time (hidden again on start/home)
+}
 startBtn.onclick=startGame; homeBtn.onclick=showHome;
 document.getElementById('icDraw').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h13" stroke="#7edcff" stroke-width="2.2"/><path d="M5 22h11" stroke="#4f7fa6" stroke-width="2"/><path d="M15 5l3 3-8 8-3 0 0-3z" stroke="#cfe8ff" stroke-width="1.6"/></svg>';
 document.getElementById('icUp').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#7be0a0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6"/><path d="M6 11l6-6 6 6"/></svg>';
@@ -454,7 +484,7 @@ muteBtn.onclick=()=>{ actx(); setMuted(!muted); refreshMute(); }; refreshMute();
 function checkRotate(){ document.getElementById('rotate').classList.toggle('show', window.innerWidth>window.innerHeight && 'ontouchstart' in window); }
 window.addEventListener('orientationchange',()=>setTimeout(()=>{fitCanvas();checkRotate();},200));
 if(document.fonts&&document.fonts.load){ document.fonts.load('30px "Press Start 2P"'); document.fonts.load('20px "DotGothic16"'); }
-fitCanvas(); checkRotate(); showHome(); loop();
+fitCanvas(); checkRotate(); showHome(); loop(); adInit();
 </script>
 </body>
 </html>
