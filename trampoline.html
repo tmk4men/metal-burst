@@ -114,7 +114,7 @@ window.addEventListener('resize',()=>{ fitCanvas(); checkRotate(); });
 
 /* ---------- constants ---------- */
 const BALL_R=14, GRAV=0.125, MAXV=15, WALL_REST=0.62;
-const TRAMP_E=1.05, MIN_BOUNCE=10.0;           // restitution + guaranteed min upward bounce speed (extra floaty / slower)
+const TRAMP_E=1.00, MIN_BOUNCE=9.2;            // restitution + guaranteed min upward bounce speed (extra floaty / slower)
 const LINE_MAX=150, MIN_LINE=14, MAX_LINES=2;  // length cap, min drawable, persistent line count
 const INK_MAX=100, INK_COST=0.20, INK_BUCKET=85, INK_REGEN=0.16;   // ink economy — auto-recovers over time (~10s to full), buckets top up instantly
 const SPIKE_DEPTH=15, FLOOR_H=10;
